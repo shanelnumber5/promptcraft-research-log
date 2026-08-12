@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#171716">
+  <title>PromptCraft Research & Development Hub</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-main">PromptCraft</span><span class="slash">/</span><span>Research & Development Hub</span></div>
+    <div class="top-actions">
+      <span id="storageBadge" class="badge">Local storage</span>
+      <button id="connectBtn" class="ghost">Connect cloud</button>
+      <button id="exportAllBtn" class="ghost">Export archive</button>
+    </div>
+  </header>
+
+  <div id="cloudPanel" class="cloud-panel hidden" role="dialog" aria-label="Cloud storage connection">
+    <div>
+      <strong>Netlify cloud storage</strong>
+      <p>Enter the admin key configured as <code>PROMPTCRAFT_ADMIN_KEY</code> in Netlify. The key stays in this browser session.</p>
+    </div>
+    <input id="adminKey" type="password" autocomplete="current-password" placeholder="Admin key">
+    <button id="cloudConnectConfirm">Connect</button>
+    <button id="cloudCancel" class="ghost">Cancel</button>
+  </div>
+
+  <nav class="tabs" aria-label="Project sections">
+    <button class="tab active" data-view="log">Development Log</button>
+    <button class="tab" data-view="research">Research Library</button>
+    <button class="tab" data-view="plan">Research Plan</button>
+    <button class="tab" data-view="backups">Project Backups</button>
+  </nav>
+
+  <main>
+    <section id="view-log" class="view active">
+      <div class="page-head">
+        <div><h1>Development Log</h1><p>A timestamped record of design decisions, iterations, testing, and reflection.</p></div>
+        <div class="stats"><div><b id="logCount">0</b><span>entries</span></div><div><b id="phaseCount">0</b><span>phases</span></div></div>
+      </div>
+      <div class="panel form-panel">
+        <h2 id="logFormTitle">Add new entry</h2>
+        <form id="logForm">
+          <input type="hidden" id="logId">
+          <div class="grid2">
+            <label>Date<input id="logDate" type="date" required></label>
+            <label>Phase<select id="logPhase" required></select></label>
+          </div>
+          <label>Entry title<input id="logTitle" placeholder="Brief descriptor" required></label>
+          <label>What happened<textarea id="logWhat" rows="4" placeholder="Describe the activity, decision, or milestone…" required></textarea></label>
+          <label>Why / rationale or reflection<textarea id="logWhy" rows="4" placeholder="Why this choice? What did you learn?"></textarea></label>
+          <label>Tags (comma separated)<input id="logTags" placeholder="e.g. OSCQR, Canvas LMS, Claude API"></label>
+          <div class="actions"><button type="button" id="logClear" class="ghost">Clear</button><button type="submit">Save entry</button></div>
+        </form>
+      </div>
+      <div class="filters"><input id="logSearch" placeholder="Search entries…"><select id="logFilter"></select><button id="restoreLogBtn" class="ghost">Restore base entries</button><button id="exportLogBtn" class="ghost">Export log .txt</button></div>
+      <div id="logList" class="cards"></div>
+    </section>
+
+    <section id="view-research" class="view">
+      <div class="page-head">
+        <div><h1>Research Library</h1><p>Sources from the PromptCraft research tracker, with dissertation connections and reading status.</p></div>
+        <div class="stats"><div><b id="sourceCount">0</b><span>sources</span></div><div><b id="readCount">0</b><span>read/cited</span></div></div>
+      </div>
+      <div class="panel form-panel compact-form">
+        <h2 id="sourceFormTitle">Add research source</h2>
+        <form id="sourceForm">
+          <input type="hidden" id="sourceId">
+          <div class="grid2"><label>Theme<select id="sourceTheme"></select></label><label>Priority<select id="sourcePriority"><option>High</option><option>Medium</option><option>Low</option></select></label></div>
+          <label>Title<input id="sourceTitle" required></label>
+          <div class="grid2"><label>Author(s)<input id="sourceAuthors"></label><label>Date<input id="sourceDate" placeholder="2025 or 2025-08-12"></label></div>
+          <label>Journal / publisher<input id="sourcePublisher"></label>
+          <label>APA citation<textarea id="sourceApa" rows="2"></textarea></label>
+          <label>Key argument<textarea id="sourceArgument" rows="3"></textarea></label>
+          <label>Connection to PromptCraft<textarea id="sourceConnection" rows="3"></textarea></label>
+          <div class="grid2"><label>Methodology<textarea id="sourceMethod" rows="2"></textarea></label><label>Status<select id="sourceStatus"><option>Not Started</option><option>In Progress</option><option>Read</option><option>Cited</option></select></label></div>
+          <label>Notes / quotes<textarea id="sourceNotes" rows="3"></textarea></label>
+          <label>Archive filename<input id="sourceArchive" placeholder="Optional local archive filename"></label>
+          <div class="actions"><button type="button" id="sourceClear" class="ghost">Clear</button><button type="submit">Save source</button></div>
+        </form>
+      </div>
+      <div class="filters"><input id="sourceSearch" placeholder="Search sources…"><select id="sourceThemeFilter"></select><select id="sourceStatusFilter"><option value="">All statuses</option><option>Not Started</option><option>In Progress</option><option>Read</option><option>Cited</option></select></div>
+      <div id="sourceList" class="cards"></div>
+    </section>
+
+    <section id="view-plan" class="view">
+      <div class="page-head"><div><h1>Research Plan</h1><p>Themes map, dissertation outline, and reading schedule imported from the research tracker.</p></div></div>
+      <div class="subtabs"><button class="subtab active" data-plan="themes">Themes Map</button><button class="subtab" data-plan="outline">Dissertation Outline</button><button class="subtab" data-plan="reading">Reading Schedule</button></div>
+      <div id="plan-themes" class="plan-view active"></div>
+      <div id="plan-outline" class="plan-view"></div>
+      <div id="plan-reading" class="plan-view"></div>
+    </section>
+
+    <section id="view-backups" class="view">
+      <div class="page-head">
+        <div><h1>Project Backups</h1><p>Milestone snapshots for PromptCraft. This is backup source control, not a substitute for Git diffs and branches.</p></div>
+        <div class="stats"><div><b id="backupCount">0</b><span>snapshots</span></div><div><b id="backupSize">0 MB</b><span>stored</span></div></div>
+      </div>
+      <div class="warning"><strong>Designed as a second copy.</strong> Keep your active project folder and/or Git repository. This archive is for milestone ZIPs and research documentation.</div>
+      <div class="panel form-panel">
+        <h2>Add project snapshot</h2>
+        <form id="backupForm">
+          <div class="grid2"><label>Version<input id="backupVersion" placeholder="e.g. v0.8.4" required></label><label>Phase<select id="backupPhase"></select></label></div>
+          <label>Snapshot title<input id="backupTitle" placeholder="e.g. S2 responsive fixes" required></label>
+          <label>What changed<textarea id="backupDescription" rows="3" required></textarea></label>
+          <label>Backup file<input id="backupFile" type="file" accept=".zip,.js,.css,.html,.json,.txt" required><small>ZIP recommended. Cloud uploads are chunked so larger project archives can be stored safely.</small></label>
+          <label class="check"><input id="backupLogIt" type="checkbox" checked> Also add this snapshot to the Development Log</label>
+          <div class="actions"><button type="submit">Save snapshot</button></div>
+          <div id="backupProgress" class="progress hidden"><div></div><span></span></div>
+        </form>
+      </div>
+      <div id="backupList" class="cards"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="seed-data.js?v=20260812-2"></script>
+  <script src="app.js?v=20260812-2"></script>
+</body>
+</html>

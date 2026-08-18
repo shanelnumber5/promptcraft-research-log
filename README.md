@@ -50,3 +50,29 @@ This build uses a non-destructive data merge. When the site opens, the complete 
 
 ## August 12 runtime repair
 Fixed the missing `SOURCE_FOLDERS` JavaScript constant that stopped rendering after the source-folder reorganization. Added cache-busting script versions and an explicit seed-data load error. Verified in this build: 26 development entries and 16 research sources.
+
+
+## Cloud-first synchronization update — August 18, 2026
+
+This build treats the Netlify state store as the shared source of truth when a valid
+`PROMPTCRAFT_ADMIN_KEY` is connected.
+
+### What changed
+- The admin key can be remembered on each trusted device.
+- The site automatically syncs on startup and when the browser regains focus.
+- Saving a log entry or research source writes locally first, then merges with the latest cloud state before updating Netlify.
+- Local-only and cloud-only records are merged instead of one copy blindly overwriting the other.
+- New edits receive timestamps so the newer edit wins during later syncs.
+- Deletions use tombstones so a deleted record is not resurrected by an older computer.
+- Locally stored project-backup files are automatically migrated to Netlify Blobs when that original browser reconnects to cloud storage.
+- If Netlify is temporarily unavailable, work remains in local storage and is marked pending until the next successful sync.
+
+### Important one-time migration
+On the computer that currently contains your newest local Research Log entries:
+1. Deploy this build to Netlify.
+2. Open the deployed Hub on that computer.
+3. Click **Connect cloud**, enter the same `PROMPTCRAFT_ADMIN_KEY`, leave **Remember key on this device** checked, and choose **Connect & merge**.
+4. Wait until the badge reads **Cloud synced**.
+5. Open the Hub on the second computer, connect with the same admin key once, and its copy will merge with the cloud state.
+
+Do not clear browser storage on the original computer until the first cloud merge has completed.

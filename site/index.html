@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="promptcraft.ico" type="image/x-icon">
-    <title>PromptCraft | Research & Development Hub</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#171716">
+  <title>PromptCraft Research & Development Hub</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,6 +13,7 @@
     <div class="top-actions">
       <span id="storageBadge" class="badge">Local storage</span>
       <button id="connectBtn" class="ghost">Connect cloud</button>
+      <button id="syncBtn" class="ghost hidden">Sync now</button>
       <button id="exportAllBtn" class="ghost">Export archive</button>
     </div>
   </header>
@@ -20,10 +21,14 @@
   <div id="cloudPanel" class="cloud-panel hidden" role="dialog" aria-label="Cloud storage connection">
     <div>
       <strong>Netlify cloud storage</strong>
-      <p>Enter the admin key configured as <code>PROMPTCRAFT_ADMIN_KEY</code> in Netlify. The key stays in this browser session.</p>
+      <p>Enter the admin key configured as <code>PROMPTCRAFT_ADMIN_KEY</code> in Netlify. Cloud storage is the shared source of truth; local browser storage is retained as an offline fallback.</p>
     </div>
-    <input id="adminKey" type="password" autocomplete="current-password" placeholder="Admin key">
-    <button id="cloudConnectConfirm">Connect</button>
+    <div class="cloud-auth">
+      <input id="adminKey" type="password" autocomplete="current-password" placeholder="Admin key">
+      <label class="check"><input id="rememberKey" type="checkbox" checked> Remember key on this device</label>
+    </div>
+    <button id="cloudConnectConfirm">Connect & merge</button>
+    <button id="cloudDisconnect" class="ghost">Disconnect</button>
     <button id="cloudCancel" class="ghost">Cancel</button>
   </div>
 
@@ -116,7 +121,7 @@
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="seed-data.js?v=20260812-2"></script>
-  <script src="app.js?v=20260812-2"></script>
+  <script src="seed-data.js?v=20260818-cloudsync1"></script>
+  <script src="app.js?v=20260818-cloudsync1"></script>
 </body>
 </html>

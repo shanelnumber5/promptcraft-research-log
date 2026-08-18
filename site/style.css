@@ -11,3 +11,7 @@
 .source-folder-cards{display:grid;gap:14px;padding:16px}
 .source-folder-cards .card{margin:0}
 @media (max-width:700px){.source-folder{border-radius:10px}.source-folder-head{padding:14px}.source-folder-cards{padding:10px}}
+
+.cloud-panel{grid-template-columns:1fr minmax(240px,360px) auto auto auto}
+.cloud-auth{display:grid;gap:7px}.cloud-auth input{width:100%}
+@media(max-width:920px){.cloud-panel{grid-template-columns:1fr 1fr}.cloud-panel>div:first-child{grid-column:1/-1}}

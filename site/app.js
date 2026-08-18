@@ -102,7 +102,7 @@ function addTombstone(type,item){
  state.deleted=normalizeDeleted(state.deleted);
  state.deleted[type].push({id:item?.id||'',key:semanticKey(type,item||{}),deletedAt:new Date().toISOString()});
 }
-async function api(url,opt={}){opt.headers={...(opt.headers||{}),'Content-Type':'application/json','X-PromptCraft-Key':adminKey};const r=await fetch(url,opt);const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||`Request failed (${r.status})`);return data}
+async function api(url,opt={}){opt.headers={...(opt.headers||{}),'Content-Type':'application/json'};if(adminKey)opt.headers['X-PromptCraft-Key']=adminKey;const r=await fetch(url,opt);const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||`Request failed (${r.status})`);return data}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
 function setStorageBadge(){
  const b=$('#storageBadge'),btn=$('#connectBtn'),syncBtn=$('#syncBtn');
@@ -196,6 +196,23 @@ async function migrateLocalBackups(){
  if(moved){persistLocal();await api('/.netlify/functions/state',{method:'POST',body:JSON.stringify({state})})}
  return moved
 }
+async function pullCloudReadOnly({silent=true}={}){
+ try{
+   const x=await api('/.netlify/functions/state');
+   if(x.initialized&&x.state){
+     state=mergeSyncStates(state,x.state);
+     persistLocal();
+     render();
+     if(!silent)toast('Latest cloud data loaded');
+     return true
+   }
+   return false
+ }catch(e){
+   if(!silent)toast('Could not load cloud data');
+   console.error(e);
+   return false
+ }
+}
 async function syncCloud({silent=false}={}){
  if(!adminKey||syncing)return false;
  try{
@@ -227,11 +244,19 @@ function disconnectCloud(){
  $('#adminKey').value='';setStorageBadge();toast('Cloud disconnected on this device')
 }
 async function bootstrap(){
- bootstrap();
- if(adminKey)await syncCloud({silent:true});
+ clearLog();
+ clearSource();
+ render();
+ await pullCloudReadOnly({silent:true});
+ if(adminKey){
+   const ok=await syncCloud({silent:true});
+   if(!ok)setStorageBadge();
+ }else{
+   setStorageBadge();
+ }
 }
-window.addEventListener('focus',()=>{if(adminKey)syncCloud({silent:true})});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&adminKey)syncCloud({silent:true})});
+window.addEventListener('focus',async()=>{await pullCloudReadOnly({silent:true});if(adminKey&&localStorage.getItem(UNSYNCED_KEY)==='1')syncCloud({silent:true})});
+document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'){await pullCloudReadOnly({silent:true});if(adminKey&&localStorage.getItem(UNSYNCED_KEY)==='1')syncCloud({silent:true})}});
 
 // Events
 $$('.tab').forEach(b=>b.onclick=()=>{$$('.tab').forEach(x=>x.classList.toggle('active',x===b));$$('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+b.dataset.view))});
@@ -243,4 +268,4 @@ $('#logForm').onsubmit=async e=>{e.preventDefault();const id=$('#logId').value||
 $('#sourceForm').onsubmit=async e=>{e.preventDefault();const id=$('#sourceId').value||uuid(),obj={id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,title:$('#sourceTitle').value.trim(),authors:$('#sourceAuthors').value.trim(),date:$('#sourceDate').value.trim(),publisher:$('#sourcePublisher').value.trim(),apa:$('#sourceApa').value.trim(),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,notes:$('#sourceNotes').value.trim(),archiveFile:$('#sourceArchive').value.trim(),updatedAt:new Date().toISOString()};const i=state.sources.findIndex(x=>x.id===id);if(i>=0)state.sources[i]=obj;else state.sources.push(obj);await persist();clearSource();renderSources();toast('Research source saved')};
 $('#backupForm').onsubmit=async e=>{e.preventDefault();const file=$('#backupFile').files[0];if(!file)return;const id=uuid(),version=$('#backupVersion').value.trim(),title=$('#backupTitle').value.trim(),phase=$('#backupPhase').value,description=$('#backupDescription').value.trim();try{progress(2,'Calculating checksum…');const sha256=await hashFile(file);const stored=await storeBackupFile(id,file);progress(90,'Saving snapshot record…');const b={id,version,title,phase,description,fileName:file.name,size:file.size,type:file.type,sha256,created:new Date().toISOString(),updatedAt:new Date().toISOString(),...stored};state.backups.push(b);if($('#backupLogIt').checked)state.logs.push({id:uuid(),date:today(),phase,title:`Project snapshot saved — ${version}: ${title}`,what:`Saved a backup source-control snapshot (${file.name}, ${fmtBytes(file.size)}). ${description}`,why:'Created a milestone copy so the development state can be restored independently of the active working files. This backup complements, rather than replaces, Git/version history.',tags:['backup','source control','project snapshot',version],updatedAt:new Date().toISOString()});await persist();progress(100,'Saved');setTimeout(hideProgress,600);e.target.reset();$('#backupLogIt').checked=true;render();toast('Project snapshot saved')}catch(err){hideProgress();toast(err.message);console.error(err)}};
 
-clearLog();clearSource();render();
+bootstrap();

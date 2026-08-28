@@ -130,7 +130,17 @@ async function idbPut(k,v){const d=await db();return new Promise((res,rej)=>{con
 async function idbGet(k){const d=await db();return new Promise((res,rej)=>{const tx=d.transaction('files');const r=tx.objectStore('files').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
 async function idbDelete(k){const d=await db();return new Promise((res,rej)=>{const tx=d.transaction('files','readwrite');tx.objectStore('files').delete(k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 
-function initSelects(){const phaseOpts=PHASES.map(x=>`<option>${x}</option>`).join(''); $('#logPhase').innerHTML=phaseOpts;$('#backupPhase').innerHTML=phaseOpts;$('#logFilter').innerHTML='<option value="">All phases</option>'+phaseOpts;const themeOpts=SOURCE_FOLDERS.map(x=>`<option>${esc(x)}</option>`).join('');$('#sourceTheme').innerHTML=themeOpts;$('#sourceThemeFilter').innerHTML='<option value="">All source folders</option>'+themeOpts}
+function initSelects(){
+ const phaseOpts=PHASES.map(x=>`<option>${x}</option>`).join('');
+ const logPhase=$('#logPhase'),backupPhase=$('#backupPhase'),logFilter=$('#logFilter');
+ if(!logPhase.options.length)logPhase.innerHTML=phaseOpts;
+ if(!backupPhase.options.length)backupPhase.innerHTML=phaseOpts;
+ if(!logFilter.options.length)logFilter.innerHTML='<option value="">All phases</option>'+phaseOpts;
+ const themeOpts=SOURCE_FOLDERS.map(x=>`<option>${esc(x)}</option>`).join('');
+ const sourceTheme=$('#sourceTheme'),sourceThemeFilter=$('#sourceThemeFilter');
+ if(!sourceTheme.options.length)sourceTheme.innerHTML=themeOpts;
+ if(!sourceThemeFilter.options.length)sourceThemeFilter.innerHTML='<option value="">All source folders</option>'+themeOpts;
+}
 function render(){initSelects();renderLogs();renderSources();renderPlans();renderBackups();setStorageBadge()}
 
 function renderLogs(){let items=[...state.logs].sort((a,b)=>(b.date||'').localeCompare(a.date||''));const q=$('#logSearch').value.toLowerCase().trim(),phase=$('#logFilter').value;if(q)items=items.filter(e=>JSON.stringify(e).toLowerCase().includes(q));if(phase)items=items.filter(e=>e.phase===phase);$('#logCount').textContent=state.logs.length;$('#phaseCount').textContent=new Set(state.logs.map(e=>e.phase)).size;$('#logList').innerHTML=items.length?items.map(e=>`<article class="card"><div class="card-head"><div><span class="phase">${esc(e.phase)}</span><h3>${esc(e.title)}</h3><div class="meta">${esc(humanDate(e.date))}</div></div></div><div class="card-body"><div><h4>What happened</h4><p>${esc(e.what)}</p></div><div><h4>Why / rationale & reflection</h4><p>${esc(e.why)}</p></div></div><div class="tags">${(e.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="card-actions"><button class="ghost" onclick="editLog('${e.id}')">Edit</button><button class="ghost danger" onclick="deleteLog('${e.id}')">Delete</button></div></article>`).join(''):'<div class="empty">No matching development entries.</div>'}
@@ -244,9 +254,9 @@ function disconnectCloud(){
  $('#adminKey').value='';setStorageBadge();toast('Cloud disconnected on this device')
 }
 async function bootstrap(){
+ render();
  clearLog();
  clearSource();
- render();
  await pullCloudReadOnly({silent:true});
  if(adminKey){
    const ok=await syncCloud({silent:true});

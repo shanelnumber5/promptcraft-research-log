@@ -34,6 +34,7 @@
 
   <nav class="tabs" aria-label="Project sections">
     <button class="tab active" data-view="log">Development Log</button>
+    <button class="tab" data-view="visual">Visual History</button>
     <button class="tab" data-view="research">Research Library</button>
     <button class="tab" data-view="plan">Research Plan</button>
     <button class="tab" data-view="backups">Project Backups</button>
@@ -57,11 +58,26 @@
           <label>What happened<textarea id="logWhat" rows="4" placeholder="Describe the activity, decision, or milestone…" required></textarea></label>
           <label>Why / rationale or reflection<textarea id="logWhy" rows="4" placeholder="Why this choice? What did you learn?"></textarea></label>
           <label>Tags (comma separated)<input id="logTags" placeholder="e.g. OSCQR, Canvas LMS, Claude API"></label>
+          <fieldset class="dev-images-fieldset">
+            <legend>Development images <span class="optional">optional</span></legend>
+            <p class="image-help">Attach screenshots or photos that document this stage of development. Each image can be labeled and optionally included in the curated Visual History. Image uploads require the cloud admin connection so they stay available across devices.</p>
+            <label>Add image(s)<input id="logImages" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple><small>PNG, JPG, WebP, or GIF. Original files are preserved.</small></label>
+            <div id="logImageEditor" class="image-editor"></div>
+          </fieldset>
           <div class="actions"><button type="button" id="logClear" class="ghost">Clear</button><button type="submit">Save entry</button></div>
         </form>
       </div>
       <div class="filters"><input id="logSearch" placeholder="Search entries…"><select id="logFilter"></select><button id="restoreLogBtn" class="ghost">Restore base entries</button><button id="exportLogBtn" class="ghost">Export log .txt</button></div>
       <div id="logList" class="cards"></div>
+    </section>
+
+    <section id="view-visual" class="view">
+      <div class="page-head">
+        <div><h1>Visual History</h1><p>A curated timeline of PromptCraft's development, built from images attached to Development Log entries.</p></div>
+        <div class="stats"><div><b id="visualCount">0</b><span>images</span></div><div><b id="visualEntryCount">0</b><span>milestones</span></div></div>
+      </div>
+      <div class="warning visual-note"><strong>Curated, not exhaustive.</strong> Only images marked “Include in Visual History” appear here. Development Log entries can retain additional screenshots as supporting evidence.</div>
+      <div id="visualTimeline" class="visual-timeline"></div>
     </section>
 
     <section id="view-research" class="view">
@@ -120,8 +136,15 @@
     </section>
   </main>
 
+  <div id="imageModal" class="image-modal hidden" role="dialog" aria-modal="true" aria-label="Development image preview">
+    <button id="imageModalClose" class="image-modal-close" aria-label="Close image preview">×</button>
+    <figure>
+      <img id="imageModalImg" alt="">
+      <figcaption id="imageModalCaption"></figcaption>
+    </figure>
+  </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="seed-data.js?v=20260818-cloudsync1"></script>
-  <script src="app.js?v=20260828-phasefix1"></script>
+  <script src="app.js?v=20260901-visualhistory1"></script>
 </body>
 </html>

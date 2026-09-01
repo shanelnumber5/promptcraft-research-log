@@ -23,6 +23,10 @@ let state=loadLocal();
 let cloud=false;
 let syncing=false;
 let adminKey=localStorage.getItem(ADMIN_KEY_STORAGE)||sessionStorage.getItem(ADMIN_KEY_STORAGE)||'';
+const IMAGE_TYPES=['Before','After','Prototype','Bug','Final','Reference','Process'];
+let editingLogImages=[];
+let pendingLogImages=[];
+const imageUrlCache=new Map();
 
 function normalizeSeed(seed){if(!seed||!Array.isArray(seed.logs))throw new Error('PromptCraft base data failed to load. Check that seed-data.js is deployed beside app.js.');const x=clone(seed); x.logs=x.logs.map((e,i)=>({...e,id:e.id||'seed-log-'+i,phase:LEGACY_PHASE[e.phase]||e.phase,date:isoDate(e.date)})); x.sources=x.sources.map((s,i)=>({...s,id:s.id||'seed-source-'+i})); x.backups=x.backups||[]; return x}
 function isMissing(v){return v===undefined||v===null||v===''||(Array.isArray(v)&&v.length===0)}
@@ -141,12 +145,68 @@ function initSelects(){
  if(!sourceTheme.options.length)sourceTheme.innerHTML=themeOpts;
  if(!sourceThemeFilter.options.length)sourceThemeFilter.innerHTML='<option value="">All source folders</option>'+themeOpts;
 }
-function render(){initSelects();renderLogs();renderSources();renderPlans();renderBackups();setStorageBadge()}
-
-function renderLogs(){let items=[...state.logs].sort((a,b)=>(b.date||'').localeCompare(a.date||''));const q=$('#logSearch').value.toLowerCase().trim(),phase=$('#logFilter').value;if(q)items=items.filter(e=>JSON.stringify(e).toLowerCase().includes(q));if(phase)items=items.filter(e=>e.phase===phase);$('#logCount').textContent=state.logs.length;$('#phaseCount').textContent=new Set(state.logs.map(e=>e.phase)).size;$('#logList').innerHTML=items.length?items.map(e=>`<article class="card"><div class="card-head"><div><span class="phase">${esc(e.phase)}</span><h3>${esc(e.title)}</h3><div class="meta">${esc(humanDate(e.date))}</div></div></div><div class="card-body"><div><h4>What happened</h4><p>${esc(e.what)}</p></div><div><h4>Why / rationale & reflection</h4><p>${esc(e.why)}</p></div></div><div class="tags">${(e.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="card-actions"><button class="ghost" onclick="editLog('${e.id}')">Edit</button><button class="ghost danger" onclick="deleteLog('${e.id}')">Delete</button></div></article>`).join(''):'<div class="empty">No matching development entries.</div>'}
-function clearLog(){Object.assign($('#logForm'),{});$('#logId').value='';$('#logDate').value=today();$('#logPhase').value='Iteration';$('#logTitle').value='';$('#logWhat').value='';$('#logWhy').value='';$('#logTags').value='';$('#logFormTitle').textContent='Add new entry'}
-window.editLog=id=>{const e=state.logs.find(x=>x.id===id);if(!e)return;$('#logId').value=e.id;$('#logDate').value=isoDate(e.date);$('#logPhase').value=e.phase;$('#logTitle').value=e.title;$('#logWhat').value=e.what;$('#logWhy').value=e.why;$('#logTags').value=(e.tags||[]).join(', ');$('#logFormTitle').textContent='Edit entry';scrollTo({top:120,behavior:'smooth'})}
-window.deleteLog=async id=>{if(!confirm('Delete this development log entry?'))return;const item=state.logs.find(x=>x.id===id);addTombstone('logs',item);state.logs=state.logs.filter(x=>x.id!==id);await persist();renderLogs();toast('Entry deleted')}
+function imageMetaHtml(img,entryId,editable=false,index=0,kind='existing'){
+ const type=esc(img.imageType||'Process'),caption=esc(img.caption||''),checked=img.includeInHistory?'checked':'';
+ const preview=kind==='pending'&&img.previewUrl?`src="${esc(img.previewUrl)}"`:`data-cloud-image="${esc(img.id)}"`;
+ if(!editable)return `<figure class="dev-image"><button type="button" class="image-open" onclick="openDevelopmentImage('${esc(entryId)}','${esc(img.id)}')"><img ${preview} alt="${caption||esc(img.fileName||'Development image')}" loading="lazy"></button><figcaption><span class="image-type">${type}</span>${caption?`<span>${caption}</span>`:''}</figcaption></figure>`;
+ return `<div class="image-edit-card" data-image-kind="${kind}" data-image-index="${index}"><div class="image-edit-preview"><img ${preview} alt="${caption||esc(img.fileName||'Development image')}"></div><div class="image-edit-fields"><label>Type<select onchange="updateLogImageMeta('${kind}',${index},'imageType',this.value)">${IMAGE_TYPES.map(x=>`<option ${x===(img.imageType||'Process')?'selected':''}>${x}</option>`).join('')}</select></label><label>Caption<input value="${caption}" placeholder="What does this image document?" oninput="updateLogImageMeta('${kind}',${index},'caption',this.value)"></label><label class="check"><input type="checkbox" ${checked} onchange="updateLogImageMeta('${kind}',${index},'includeInHistory',this.checked)"> Include in Visual History</label><button type="button" class="ghost danger image-remove" onclick="removeLogImage('${kind}',${index})">Remove</button></div></div>`;
+}
+function revokePendingPreviews(){for(const x of pendingLogImages)if(x.previewUrl)URL.revokeObjectURL(x.previewUrl)}
+function renderLogImageEditor(){
+ const el=$('#logImageEditor');if(!el)return;
+ const blocks=[];
+ if(editingLogImages.length)blocks.push(`<div class="image-editor-section"><h3>Attached images</h3>${editingLogImages.map((img,i)=>imageMetaHtml(img,$('#logId').value,true,i,'existing')).join('')}</div>`);
+ if(pendingLogImages.length)blocks.push(`<div class="image-editor-section"><h3>New images</h3>${pendingLogImages.map((img,i)=>imageMetaHtml(img,$('#logId').value,true,i,'pending')).join('')}</div>`);
+ el.innerHTML=blocks.join('');hydrateImages(el);
+}
+window.updateLogImageMeta=(kind,index,key,value)=>{const arr=kind==='pending'?pendingLogImages:editingLogImages;if(arr[index])arr[index][key]=value};
+window.removeLogImage=(kind,index)=>{const arr=kind==='pending'?pendingLogImages:editingLogImages;if(!arr[index])return;if(kind==='pending'&&arr[index].previewUrl)URL.revokeObjectURL(arr[index].previewUrl);arr.splice(index,1);renderLogImageEditor()};
+async function fileToBase64(file){const buf=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<buf.length;i+=0x8000)binary+=String.fromCharCode(...buf.subarray(i,i+0x8000));return btoa(binary)}
+async function uploadDevelopmentImage(item){
+ if(!adminKey)throw new Error('Connect cloud storage before adding development images.');
+ const file=item.file,chunkSize=1.25*1024*1024;let index=0;
+ for(let start=0;start<file.size;start+=chunkSize){
+   const chunk=file.slice(start,Math.min(file.size,start+chunkSize));
+   const data=await fileToBase64(chunk);
+   await api('/.netlify/functions/image',{method:'POST',body:JSON.stringify({action:'put',imageId:item.id,index,data})});index++;
+ }
+ return {id:item.id,fileName:file.name,type:file.type||'application/octet-stream',size:file.size,chunkCount:index,caption:item.caption||'',imageType:item.imageType||'Process',includeInHistory:!!item.includeInHistory,created:new Date().toISOString()};
+}
+async function deleteDevelopmentImageBlob(img){
+ if(!img?.id||!img?.chunkCount||!adminKey)return;
+ await api('/.netlify/functions/image',{method:'POST',body:JSON.stringify({action:'delete',imageId:img.id,chunkCount:img.chunkCount})});
+ const url=imageUrlCache.get(img.id);if(url){URL.revokeObjectURL(url);imageUrlCache.delete(img.id)}
+}
+async function getDevelopmentImageUrl(img){
+ if(!img?.id)return'';if(imageUrlCache.has(img.id))return imageUrlCache.get(img.id);
+ const parts=[];
+ for(let i=0;i<(img.chunkCount||0);i++){
+   const x=await api(`/.netlify/functions/image?imageId=${encodeURIComponent(img.id)}&index=${i}`);
+   const bin=atob(x.data),u=new Uint8Array(bin.length);for(let j=0;j<bin.length;j++)u[j]=bin.charCodeAt(j);parts.push(u);
+ }
+ const url=URL.createObjectURL(new Blob(parts,{type:img.type||'image/png'}));imageUrlCache.set(img.id,url);return url;
+}
+function findImageMeta(id){for(const log of state.logs||[]){const img=(log.images||[]).find(x=>x.id===id);if(img)return {img,log}}return null}
+async function hydrateImages(root=document){
+ const nodes=[...root.querySelectorAll('img[data-cloud-image]')];
+ await Promise.all(nodes.map(async imgEl=>{const id=imgEl.dataset.cloudImage,found=findImageMeta(id);if(!found)return;try{imgEl.src=await getDevelopmentImageUrl(found.img)}catch(e){imgEl.alt='Image unavailable';console.warn('Image load failed',id,e)}}));
+}
+window.openDevelopmentImage=async(entryId,imageId)=>{const found=findImageMeta(imageId);if(!found)return;const modal=$('#imageModal'),img=$('#imageModalImg'),cap=$('#imageModalCaption');img.src=await getDevelopmentImageUrl(found.img);img.alt=found.img.caption||found.img.fileName||'Development image';cap.textContent=[found.img.imageType,found.img.caption,found.log.title].filter(Boolean).join(' · ');modal.classList.remove('hidden');document.body.classList.add('modal-open')};
+function closeImageModal(){$('#imageModal').classList.add('hidden');$('#imageModalImg').removeAttribute('src');document.body.classList.remove('modal-open')}
+function render(){initSelects();renderLogs();renderVisualHistory();renderSources();renderPlans();renderBackups();setStorageBadge()}
+function logImagesHtml(e){const imgs=Array.isArray(e.images)?e.images:[];if(!imgs.length)return'';return `<div class="dev-image-gallery">${imgs.map(img=>imageMetaHtml(img,e.id,false)).join('')}</div>`}
+function renderLogs(){let items=[...state.logs].sort((a,b)=>(b.date||'').localeCompare(a.date||''));const q=$('#logSearch').value.toLowerCase().trim(),phase=$('#logFilter').value;if(q)items=items.filter(e=>JSON.stringify(e).toLowerCase().includes(q));if(phase)items=items.filter(e=>e.phase===phase);$('#logCount').textContent=state.logs.length;$('#phaseCount').textContent=new Set(state.logs.map(e=>e.phase)).size;$('#logList').innerHTML=items.length?items.map(e=>`<article class="card"><div class="card-head"><div><span class="phase">${esc(e.phase)}</span><h3>${esc(e.title)}</h3><div class="meta">${esc(humanDate(e.date))}</div></div></div><div class="card-body"><div><h4>What happened</h4><p>${esc(e.what)}</p></div><div><h4>Why / rationale & reflection</h4><p>${esc(e.why)}</p></div></div>${logImagesHtml(e)}<div class="tags">${(e.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="card-actions"><button class="ghost" onclick="editLog('${e.id}')">Edit</button><button class="ghost danger" onclick="deleteLog('${e.id}')">Delete</button></div></article>`).join(''):'<div class="empty">No matching development entries.</div>';hydrateImages($('#logList'))}
+function clearLog(){revokePendingPreviews();editingLogImages=[];pendingLogImages=[];Object.assign($('#logForm'),{});$('#logId').value='';$('#logDate').value=today();$('#logPhase').value='Iteration';$('#logTitle').value='';$('#logWhat').value='';$('#logWhy').value='';$('#logTags').value='';$('#logImages').value='';$('#logFormTitle').textContent='Add new entry';renderLogImageEditor()}
+window.editLog=id=>{const e=state.logs.find(x=>x.id===id);if(!e)return;revokePendingPreviews();pendingLogImages=[];editingLogImages=clone(e.images||[]);$('#logId').value=e.id;$('#logDate').value=isoDate(e.date);$('#logPhase').value=e.phase;$('#logTitle').value=e.title;$('#logWhat').value=e.what;$('#logWhy').value=e.why;$('#logTags').value=(e.tags||[]).join(', ');$('#logImages').value='';$('#logFormTitle').textContent='Edit entry';renderLogImageEditor();scrollTo({top:120,behavior:'smooth'})}
+window.deleteLog=async id=>{if(!confirm('Delete this development log entry?'))return;const item=state.logs.find(x=>x.id===id);if(!item)return;const imgs=item.images||[];if(imgs.length&&!adminKey)return toast('Connect cloud storage before deleting an entry with images.');try{for(const img of imgs)await deleteDevelopmentImageBlob(img)}catch(e){console.error(e);return toast('Image cleanup failed; entry was not deleted.')}addTombstone('logs',item);state.logs=state.logs.filter(x=>x.id!==id);await persist();renderLogs();renderVisualHistory();toast('Entry deleted')}
+function renderVisualHistory(){
+ const rows=[];for(const log of state.logs||[])for(const img of log.images||[])if(img.includeInHistory)rows.push({log,img});
+ rows.sort((a,b)=>(b.log.date||'').localeCompare(a.log.date||'')||(b.img.created||'').localeCompare(a.img.created||''));
+ $('#visualCount').textContent=rows.length;$('#visualEntryCount').textContent=new Set(rows.map(x=>x.log.id)).size;
+ const el=$('#visualTimeline');if(!rows.length){el.innerHTML='<div class="empty">No images have been selected for the Visual History yet. Attach images to Development Log entries and check “Include in Visual History.”</div>';return}
+ const byDate=new Map();for(const row of rows){const d=row.log.date||'';if(!byDate.has(d))byDate.set(d,[]);byDate.get(d).push(row)}
+ el.innerHTML=[...byDate.entries()].map(([date,group])=>`<section class="visual-date"><div class="visual-date-marker"><span></span><time>${esc(humanDate(date))}</time></div><div class="visual-date-content">${group.map(({log,img})=>`<article class="visual-card"><button type="button" class="visual-image-button" onclick="openDevelopmentImage('${esc(log.id)}','${esc(img.id)}')"><img data-cloud-image="${esc(img.id)}" alt="${esc(img.caption||img.fileName||'Development image')}" loading="lazy"></button><div class="visual-card-copy"><span class="phase">${esc(log.phase)}</span><h2>${esc(log.title)}</h2><div class="visual-caption"><span class="image-type">${esc(img.imageType||'Process')}</span>${img.caption?`<p>${esc(img.caption)}</p>`:''}</div><button class="ghost" onclick="editLog('${esc(log.id)}');document.querySelector('[data-view=log]').click()">Open log entry</button></div></article>`).join('')}</div></section>`).join('');hydrateImages(el)
+}
 
 function renderSources(){
  let items=[...state.sources];
@@ -268,13 +328,19 @@ async function bootstrap(){
 window.addEventListener('focus',async()=>{await pullCloudReadOnly({silent:true});if(adminKey&&localStorage.getItem(UNSYNCED_KEY)==='1')syncCloud({silent:true})});
 document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'){await pullCloudReadOnly({silent:true});if(adminKey&&localStorage.getItem(UNSYNCED_KEY)==='1')syncCloud({silent:true})}});
 
+$('#logImages').onchange=()=>{
+ for(const file of [...$('#logImages').files]){const item={id:uuid(),file,previewUrl:URL.createObjectURL(file),caption:'',imageType:'Process',includeInHistory:true};pendingLogImages.push(item)}
+ $('#logImages').value='';renderLogImageEditor();
+};
+$('#imageModalClose').onclick=closeImageModal;$('#imageModal').onclick=e=>{if(e.target===$('#imageModal'))closeImageModal()};document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#imageModal').classList.contains('hidden'))closeImageModal()});
+
 // Events
 $$('.tab').forEach(b=>b.onclick=()=>{$$('.tab').forEach(x=>x.classList.toggle('active',x===b));$$('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+b.dataset.view))});
 $$('.subtab').forEach(b=>b.onclick=()=>{$$('.subtab').forEach(x=>x.classList.toggle('active',x===b));$$('.plan-view').forEach(v=>v.classList.toggle('active',v.id==='plan-'+b.dataset.plan))});
 $('#connectBtn').onclick=()=>{$('#cloudPanel').classList.toggle('hidden');$('#adminKey').value=adminKey;$('#rememberKey').checked=!!localStorage.getItem(ADMIN_KEY_STORAGE)};$('#syncBtn').onclick=()=>syncCloud();$('#cloudDisconnect').onclick=disconnectCloud;$('#cloudCancel').onclick=()=>$('#cloudPanel').classList.add('hidden');$('#cloudConnectConfirm').onclick=connectCloud;
 $('#logSearch').oninput=renderLogs;$('#logFilter').onchange=renderLogs;$('#sourceSearch').oninput=renderSources;$('#sourceThemeFilter').onchange=renderSources;$('#sourceStatusFilter').onchange=renderSources;
 $('#logClear').onclick=clearLog;$('#sourceClear').onclick=clearSource;$('#exportLogBtn').onclick=exportLog;$('#restoreLogBtn').onclick=restoreBaseLogs;$('#exportAllBtn').onclick=exportAll;
-$('#logForm').onsubmit=async e=>{e.preventDefault();const id=$('#logId').value||uuid();const obj={id,date:$('#logDate').value,phase:$('#logPhase').value,title:$('#logTitle').value.trim(),what:$('#logWhat').value.trim(),why:$('#logWhy').value.trim(),tags:$('#logTags').value.split(',').map(x=>x.trim()).filter(Boolean),updatedAt:new Date().toISOString()};const i=state.logs.findIndex(x=>x.id===id);if(i>=0)state.logs[i]=obj;else state.logs.push(obj);await persist();clearLog();renderLogs();toast('Development entry saved')};
+$('#logForm').onsubmit=async e=>{e.preventDefault();const id=$('#logId').value||uuid(),original=state.logs.find(x=>x.id===id),originalImages=clone(original?.images||[]);if(pendingLogImages.length&&!adminKey)return toast('Connect cloud storage before saving new development images.');try{const keptIds=new Set(editingLogImages.map(x=>x.id));for(const oldImg of originalImages)if(!keptIds.has(oldImg.id))await deleteDevelopmentImageBlob(oldImg);const uploaded=[];for(const item of pendingLogImages)uploaded.push(await uploadDevelopmentImage(item));const images=[...editingLogImages,...uploaded];const obj={id,date:$('#logDate').value,phase:$('#logPhase').value,title:$('#logTitle').value.trim(),what:$('#logWhat').value.trim(),why:$('#logWhy').value.trim(),tags:$('#logTags').value.split(',').map(x=>x.trim()).filter(Boolean),images,updatedAt:new Date().toISOString()};const i=state.logs.findIndex(x=>x.id===id);if(i>=0)state.logs[i]=obj;else state.logs.push(obj);await persist();clearLog();renderLogs();renderVisualHistory();toast(images.length?'Development entry and images saved':'Development entry saved')}catch(err){console.error(err);toast(err.message||'Could not save development entry')}};
 $('#sourceForm').onsubmit=async e=>{e.preventDefault();const id=$('#sourceId').value||uuid(),obj={id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,title:$('#sourceTitle').value.trim(),authors:$('#sourceAuthors').value.trim(),date:$('#sourceDate').value.trim(),publisher:$('#sourcePublisher').value.trim(),apa:$('#sourceApa').value.trim(),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,notes:$('#sourceNotes').value.trim(),archiveFile:$('#sourceArchive').value.trim(),updatedAt:new Date().toISOString()};const i=state.sources.findIndex(x=>x.id===id);if(i>=0)state.sources[i]=obj;else state.sources.push(obj);await persist();clearSource();renderSources();toast('Research source saved')};
 $('#backupForm').onsubmit=async e=>{e.preventDefault();const file=$('#backupFile').files[0];if(!file)return;const id=uuid(),version=$('#backupVersion').value.trim(),title=$('#backupTitle').value.trim(),phase=$('#backupPhase').value,description=$('#backupDescription').value.trim();try{progress(2,'Calculating checksum…');const sha256=await hashFile(file);const stored=await storeBackupFile(id,file);progress(90,'Saving snapshot record…');const b={id,version,title,phase,description,fileName:file.name,size:file.size,type:file.type,sha256,created:new Date().toISOString(),updatedAt:new Date().toISOString(),...stored};state.backups.push(b);if($('#backupLogIt').checked)state.logs.push({id:uuid(),date:today(),phase,title:`Project snapshot saved — ${version}: ${title}`,what:`Saved a backup source-control snapshot (${file.name}, ${fmtBytes(file.size)}). ${description}`,why:'Created a milestone copy so the development state can be restored independently of the active working files. This backup complements, rather than replaces, Git/version history.',tags:['backup','source control','project snapshot',version],updatedAt:new Date().toISOString()});await persist();progress(100,'Saved');setTimeout(hideProgress,600);e.target.reset();$('#backupLogIt').checked=true;render();toast('Project snapshot saved')}catch(err){hideProgress();toast(err.message);console.error(err)}};
 

@@ -82,124 +82,103 @@
 
     <section id="view-research" class="view">
       <div class="page-head">
-        <div><h1>Research Library</h1><p>Keep the sources, files, page-level notes, diagrams, and evidence that may support the professional paper in one place.</p></div>
+        <div><h1>Research Library</h1><p>One record per source. Keep the citation, actual files, page-level notes, diagrams, images, and paper connections together.</p></div>
         <div class="stats"><div><b id="sourceCount">0</b><span>sources</span></div><div><b id="readCount">0</b><span>read/cited</span></div></div>
       </div>
-      <div class="research-subtabs"><button class="research-subtab active" data-research="sources">Research Sources</button><button class="research-subtab" data-research="materials">Paper Materials & Notes</button></div>
-
-      <div id="research-sources" class="research-view active">
-      <div class="panel form-panel compact-form">
+      <div class="warning"><strong>Everything stays with the source.</strong> Add the article or artifact once, then attach its PDF, figures, screenshots, page notes, quotations, and paper-use ideas directly to that record.</div>
+      <div id="sourceFormPanel" class="panel form-panel compact-form">
         <h2 id="sourceFormTitle">Add research source</h2>
         <form id="sourceForm">
           <input type="hidden" id="sourceId">
-          <div class="grid2"><label>Theme<select id="sourceTheme"></select></label><label>Priority<select id="sourcePriority"><option>High</option><option>Medium</option><option>Low</option></select></label></div>
+          <div class="grid2"><label>Research theme<select id="sourceTheme"></select></label><label>Source type<select id="sourceType"><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Research Artifact</option><option>Other</option></select></label></div>
+          <div class="grid2"><label>Priority<select id="sourcePriority"><option>High</option><option>Medium</option><option>Low</option></select></label><label>Status<select id="sourceStatus"><option>Not Started</option><option>In Progress</option><option>Read</option><option>Cited</option></select></label></div>
           <label>Title<input id="sourceTitle" required></label>
-          <div class="grid2"><label>Author(s)<input id="sourceAuthors"></label><label>Date<input id="sourceDate" placeholder="2025 or 2025-08-12"></label></div>
+          <div class="grid2"><label>Author(s) / creator / organization<input id="sourceAuthors"></label><label>Date / year<input id="sourceDate" placeholder="2025 or 2025-08-12"></label></div>
           <label>Journal / publisher<input id="sourcePublisher"></label>
-          <label>APA citation<textarea id="sourceApa" rows="2"></textarea></label>
-          <label>Key argument<textarea id="sourceArgument" rows="3"></textarea></label>
+          <label>APA citation / reference<textarea id="sourceApa" rows="2"></textarea></label>
+          <label>Key argument / useful finding<textarea id="sourceArgument" rows="3"></textarea></label>
           <label>Connection to PromptCraft<textarea id="sourceConnection" rows="3"></textarea></label>
-          <div class="grid2"><label>Methodology<textarea id="sourceMethod" rows="2"></textarea></label><label>Status<select id="sourceStatus"><option>Not Started</option><option>In Progress</option><option>Read</option><option>Cited</option></select></label></div>
-          <label>Notes / quotes<textarea id="sourceNotes" rows="3"></textarea></label>
-          <label>Archive filename<input id="sourceArchive" placeholder="Optional local archive filename"></label>
+          <div class="grid2"><label>Methodology<textarea id="sourceMethod" rows="2"></textarea></label><label>Likely paper section<input id="sourcePaperSection" list="sourcePaperSectionOptions" placeholder="e.g. Chapter 2 · Professional Judgment"><datalist id="sourcePaperSectionOptions"></datalist></label></div>
+          <div class="grid2"><label>Original source URL<input id="sourceUrl" type="url" placeholder="https://…"></label><label>Tags<input id="sourceTags" placeholder="e.g. agency, OSCQR, RQ1"></label></div>
+          <label>Existing archive filename<input id="sourceArchive" placeholder="Optional legacy/local archive filename"></label>
+          <label>Attach primary document now<input id="sourceFile" type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg,.webp,.gif,.svg,.xlsx,.xls,.csv,.ppt,.pptx"><small>Optional. You can also add PDFs, diagrams, screenshots, tables, and other files from the source card after saving.</small></label>
+          <div id="sourceFileProgress" class="progress hidden"><div></div><span></span></div>
           <div class="actions"><button type="button" id="sourceClear" class="ghost">Clear</button><button type="submit">Save source</button></div>
         </form>
       </div>
-      <div class="filters"><input id="sourceSearch" placeholder="Search sources…"><select id="sourceThemeFilter"></select><select id="sourceStatusFilter"><option value="">All statuses</option><option>Not Started</option><option>In Progress</option><option>Read</option><option>Cited</option></select></div>
+
+      <div id="sourceAttachmentEditor" class="panel form-panel hidden">
+        <h2 id="attachmentFormTitle">Add file</h2>
+        <form id="sourceAttachmentForm">
+          <input id="attachmentId" type="hidden"><input id="attachmentSourceId" type="hidden">
+          <div class="grid2"><label>File type<select id="attachmentType"><option>Article / PDF</option><option>Book / Chapter</option><option>Diagram / Figure</option><option>Screenshot / Image</option><option>Dataset / Table</option><option>Presentation / Slide</option><option>Notes / Other</option></select></label><label>Page / location<input id="attachmentLocation" placeholder="e.g. p. 14, Figure 3, Appendix B"></label></div>
+          <label>Label / title<input id="attachmentTitle" placeholder="e.g. Conceptual framework diagram"></label>
+          <label>Notes about this file<textarea id="attachmentNotes" rows="2" placeholder="Why this file or image may be useful for the paper"></textarea></label>
+          <label>File<input id="attachmentFile" type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg,.webp,.gif,.svg,.xlsx,.xls,.csv,.ppt,.pptx"><small id="attachmentCurrentFile">Choose a PDF, Word file, diagram, screenshot, spreadsheet, slide, or other paper material.</small></label>
+          <div id="attachmentProgress" class="progress hidden"><div></div><span></span></div>
+          <div class="actions"><button id="attachmentCancel" type="button" class="ghost">Cancel</button><button type="submit">Save file</button></div>
+        </form>
+      </div>
+
+      <div id="sourceAnnotationEditor" class="panel form-panel hidden">
+        <h2 id="annotationFormTitle">Add note</h2>
+        <form id="sourceAnnotationForm">
+          <input id="sourceAnnotationSourceId" type="hidden"><input id="sourceAnnotationId" type="hidden">
+          <div class="grid2"><label>Page(s) / location<input id="annotationLocation" placeholder="e.g. p. 14, pp. 22–24, Figure 3, Methods section"></label><label>Annotation type<select id="annotationType"><option>Key finding</option><option>Direct quote</option><option>Paraphrase</option><option>Definition</option><option>Method / measure</option><option>Limitation</option><option>Figure / diagram</option><option>Table / data</option><option>Paper idea</option><option>Other</option></select></label></div>
+          <label>Note / quote / paraphrase<textarea id="annotationText" rows="5" required placeholder="Capture the useful information. Keep the exact page number with direct quotations."></textarea></label>
+          <label>Why it matters / your interpretation<textarea id="annotationInterpretation" rows="3" placeholder="How does this connect to PromptCraft, the study, or the argument you are building?"></textarea></label>
+          <label>Planned use in the paper<textarea id="annotationPaperUse" rows="3" placeholder="Section, claim, comparison, figure, method decision, limitation, etc."></textarea></label>
+          <label>Tags<input id="annotationTags" placeholder="e.g. agency, overreliance, RQ1"></label>
+          <div class="actions"><button id="annotationCancel" type="button" class="ghost">Cancel</button><button type="submit">Save note</button></div>
+        </form>
+      </div>
+
+      <div class="filters source-filters"><input id="sourceSearch" placeholder="Search sources, files, notes, pages, and tags…"><select id="sourceThemeFilter"></select><select id="sourceTypeFilter"><option value="">All source types</option><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Research Artifact</option><option>Other</option></select><select id="sourceStatusFilter"><option value="">All statuses</option><option>Not Started</option><option>In Progress</option><option>Read</option><option>Cited</option></select></div>
       <div id="sourceList" class="cards"></div>
-      </div>
-
-      <div id="research-materials" class="research-view">
-        <div class="page-head research-materials-head">
-          <div><h2>Paper Materials & Notes</h2><p>Store the actual files you may use, then capture page numbers, quotations, findings, diagrams, interpretations, and where each item belongs in the paper.</p></div>
-          <div class="stats"><div><b id="materialCount">0</b><span>materials</span></div><div><b id="annotationCount">0</b><span>annotations</span></div></div>
-        </div>
-        <div class="warning"><strong>Source first, note second.</strong> Keep page, figure, table, or section locations with each annotation so useful evidence does not turn into a mysterious sentence six weeks later.</div>
-        <div id="materialFormPanel" class="panel form-panel">
-          <h2 id="materialFormTitle">Add paper material</h2>
-          <form id="materialForm">
-            <input id="materialId" type="hidden">
-            <div class="grid2"><label>Material type<select id="materialType"><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Diagram / Figure</option><option>Screenshot / Image</option><option>Presentation / Slide</option><option>Notes / Other</option></select></label><label>Status<select id="materialStatus"><option>Captured</option><option>Reviewing</option><option>Annotated</option><option>Ready to Cite</option><option>Cited</option><option>Archived</option></select></label></div>
-            <label>Title<input id="materialTitle" required></label>
-            <div class="grid2"><label>Author / creator / organization<input id="materialCreator"></label><label>Date / year<input id="materialDate" placeholder="2026 or 2026-09-29"></label></div>
-            <div class="grid2"><label>Link to Research Library source<select id="materialSource"></select></label><label>Research theme<select id="materialTheme"></select></label></div>
-            <label>Citation / reference<textarea id="materialCitation" rows="2" placeholder="APA citation, source label, or enough information to identify the item"></textarea></label>
-            <label>Original source URL<input id="materialUrl" type="url" placeholder="https://…"></label>
-            <div class="grid2"><label>Likely paper section<input id="materialPaperSection" list="paperSectionOptions" placeholder="e.g. Chapter Two · Professional Judgment"><datalist id="paperSectionOptions"></datalist></label><label>Tags<input id="materialTags" placeholder="e.g. AI literacy, agency, OSCQR"></label></div>
-            <label>Attach document, image, or data file<input id="materialFile" type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg,.webp,.gif,.svg,.xlsx,.xls,.csv,.ppt,.pptx"><small id="materialCurrentFile">PDF, Word, images, spreadsheets, presentations, and text files are supported. The original file is preserved; when editing, leave this blank to keep the existing attachment.</small></label>
-            <div class="actions"><button id="materialClear" type="button" class="ghost">Clear</button><button type="submit">Save material</button></div>
-            <div id="materialProgress" class="progress hidden"><div></div><span></span></div>
-          </form>
-        </div>
-
-        <div id="materialAnnotationEditor" class="panel form-panel hidden">
-          <h2 id="annotationFormTitle">Add note / annotation</h2>
-          <form id="materialAnnotationForm">
-            <input id="materialAnnotationMaterialId" type="hidden"><input id="materialAnnotationId" type="hidden">
-            <div class="grid2"><label>Page(s) / location<input id="annotationLocation" placeholder="e.g. p. 14, pp. 22–24, Figure 3, Methods section"></label><label>Annotation type<select id="annotationType"><option>Key finding</option><option>Direct quote</option><option>Paraphrase</option><option>Definition</option><option>Method / measure</option><option>Limitation</option><option>Figure / diagram</option><option>Table / data</option><option>Paper idea</option><option>Other</option></select></label></div>
-            <label>Note / quote / paraphrase<textarea id="annotationText" rows="5" required placeholder="Capture the useful information. For direct quotations, preserve the exact wording and page number."></textarea></label>
-            <label>Why it matters / your interpretation<textarea id="annotationInterpretation" rows="3" placeholder="How does this connect to PromptCraft, the study, or the argument you are building?"></textarea></label>
-            <label>Planned use in the paper<textarea id="annotationPaperUse" rows="3" placeholder="Section, claim, comparison, figure, method decision, limitation, etc."></textarea></label>
-            <label>Tags<input id="annotationTags" placeholder="e.g. agency, overreliance, RQ1"></label>
-            <div class="actions"><button id="annotationCancel" type="button" class="ghost">Cancel</button><button type="submit">Save annotation</button></div>
-          </form>
-        </div>
-
-        <div class="filters material-filters"><input id="materialSearch" placeholder="Search materials and annotations…"><select id="materialTypeFilter"><option value="">All material types</option><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Diagram / Figure</option><option>Screenshot / Image</option><option>Presentation / Slide</option><option>Notes / Other</option></select><select id="materialStatusFilter"><option value="">All statuses</option><option>Captured</option><option>Reviewing</option><option>Annotated</option><option>Ready to Cite</option><option>Cited</option><option>Archived</option></select><select id="materialThemeFilter"><option value="">All themes</option></select></div>
-        <div id="materialList" class="cards material-list"></div>
-      </div>
     </section>
 
     <section id="view-plan" class="view">
-      <div class="page-head"><div><h1>Research Plan</h1><p>A living plan for PromptCraft. Update themes, the paper outline, and the reading schedule as the project develops.</p></div></div>
-      <div class="subtabs"><button class="subtab active" data-plan="themes">Themes Map</button><button class="subtab" data-plan="outline">Professional Paper Outline</button><button class="subtab" data-plan="reading">Reading Schedule</button></div>
-
-      <div id="plan-themes" class="plan-view active">
-        <div class="plan-toolbar"><div><strong>Themes Map</strong><span>Revise the research themes as PromptCraft and the paper evolve.</span></div><button id="themeAdd" type="button">Add theme</button></div>
-        <div id="themeEditor" class="panel form-panel plan-editor hidden">
-          <form id="themeForm">
-            <input id="themeId" type="hidden">
-            <div class="grid2"><label>Theme<input id="themeName" required></label><label>Status<select id="themeStatus"><option>Not Started</option><option>In Progress</option><option>Established</option><option>Complete</option></select></label></div>
-            <label>Research question / purpose<textarea id="themeQuestion" rows="3"></textarea></label>
-            <label>Search terms<textarea id="themeSearch" rows="2"></textarea></label>
-            <div class="grid2"><label>Paper sections / chapters<textarea id="themeChapters" rows="3"></textarea></label><label>PromptCraft scenarios / features<textarea id="themeScenarios" rows="3"></textarea></label></div>
-            <label>Sources found<input id="themeSources" type="number" min="0" step="1" value="0"></label>
-            <div class="actions"><button id="themeCancel" class="ghost" type="button">Cancel</button><button type="submit">Save theme</button></div>
-          </form>
-        </div>
-        <div id="themesList"></div>
+      <div class="page-head">
+        <div><h1>Research Plan</h1><p>A simple working view of the paper: what is drafted, what is moving, and what needs attention next.</p></div>
+        <div class="stats plan-stats"><div><b id="planPaperProgress">0%</b><span>drafted / complete</span></div><div><b id="planTaskCount">0</b><span>open tasks</span></div></div>
       </div>
 
-      <div id="plan-outline" class="plan-view">
-        <div class="plan-toolbar"><div><strong>Professional Paper Outline</strong><span>Edit the structure and questions as the professional paper takes shape.</span></div><button id="outlineAdd" type="button">Add outline item</button></div>
+      <section class="plan-section">
+        <div class="plan-toolbar"><div><strong>Paper Progress</strong><span>Update a section's status as the paper changes. Details stay tucked away until you need them.</span></div><button id="outlineAdd" type="button">Add paper section</button></div>
         <div id="outlineEditor" class="panel form-panel plan-editor hidden">
           <form id="outlineForm">
             <input id="outlineId" type="hidden">
             <div class="grid2"><label>Chapter / major section<input id="outlineChapter" required></label><label>Status<select id="outlineStatus"><option>Not Started</option><option>In Progress</option><option>Drafted</option><option>Complete</option></select></label></div>
             <label>Section title<input id="outlineSection" required></label>
-            <label>Questions to answer<textarea id="outlineQuestions" rows="4"></textarea></label>
-            <label>Related research themes<textarea id="outlineThemes" rows="3"></textarea></label>
-            <div class="actions"><button id="outlineCancel" class="ghost" type="button">Cancel</button><button type="submit">Save outline item</button></div>
+            <details class="optional-fields"><summary>Notes for this section</summary>
+              <label>What still needs to be answered or added<textarea id="outlineQuestions" rows="4"></textarea></label>
+            </details>
+            <div class="actions"><button id="outlineCancel" class="ghost" type="button">Cancel</button><button type="submit">Save paper section</button></div>
           </form>
         </div>
         <div id="outlineList"></div>
-      </div>
+      </section>
 
-      <div id="plan-reading" class="plan-view">
-        <div class="plan-toolbar"><div><strong>Reading Schedule</strong><span>Add, revise, reprioritize, or retire readings as the literature needs change.</span></div><button id="readingAdd" type="button">Add reading</button></div>
+      <section class="plan-section">
+        <div class="plan-toolbar"><div><strong>Next Up</strong><span>Keep only the research, reading, and study-design work that still needs your attention.</span></div><button id="readingAdd" type="button">Add task</button></div>
         <div id="readingEditor" class="panel form-panel plan-editor hidden">
           <form id="readingForm">
             <input id="readingId" type="hidden">
-            <div class="grid2"><label>Phase<input id="readingPhase" required></label><label>Research theme<input id="readingTheme"></label></div>
-            <label>Reading / search task<input id="readingTitle" required></label>
-            <label>Goal<textarea id="readingGoal" rows="3"></textarea></label>
-            <label>Target / timing<input id="readingTarget"></label>
-            <label class="check"><input id="readingDone" type="checkbox"> Completed</label>
-            <div class="actions"><button id="readingCancel" class="ghost" type="button">Cancel</button><button type="submit">Save reading</button></div>
+            <label>Task<input id="readingTitle" required></label>
+            <label>What you need from it<textarea id="readingGoal" rows="3"></textarea></label>
+            <div class="grid2"><label>Target / timing<input id="readingTarget"></label><label class="check plan-check"><input id="readingDone" type="checkbox"> Completed</label></div>
+            <div class="actions"><button id="readingCancel" class="ghost" type="button">Cancel</button><button type="submit">Save task</button></div>
           </form>
         </div>
         <div id="readingList"></div>
-      </div>
+      </section>
+
+      <details class="plan-archive">
+        <summary>Research focus areas</summary>
+        <p class="small">These still power the Research Library and source organization, but they no longer crowd the day-to-day plan.</p>
+        <div id="themesList"></div>
+      </details>
+      <div id="themeEditor" class="hidden"><form id="themeForm"><input id="themeId"><input id="themeName"><select id="themeStatus"><option>Not Started</option><option>In Progress</option><option>Established</option><option>Complete</option></select><textarea id="themeQuestion"></textarea><textarea id="themeSearch"></textarea><textarea id="themeChapters"></textarea><textarea id="themeScenarios"></textarea><input id="themeSources" type="number" value="0"><button id="themeCancel" type="button">Cancel</button></form></div>
     </section>
 
     <section id="view-backups" class="view">
@@ -249,6 +228,6 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="seed-data.js?v=20260818-cloudsync1"></script>
-  <script src="app.js?v=20260929-researchmaterials1"></script>
+  <script src="app.js?v=20260929-unifiedlibrary1"></script>
 </body>
 </html>

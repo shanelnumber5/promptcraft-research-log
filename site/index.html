@@ -177,6 +177,22 @@
         </form>
       </div>
       <div id="backupList" class="cards"></div>
+
+      <div class="page-head" style="margin-top:32px">
+        <div><h2>Professional Paper Backups</h2><p>Versioned copies of the working paper, separate from PromptCraft code snapshots.</p></div>
+        <div class="stats"><div><b id="paperBackupCount">0</b><span>paper copies</span></div><div><b id="paperBackupSize">0 MB</b><span>stored</span></div></div>
+      </div>
+      <div class="panel form-panel">
+        <h2>Add paper backup</h2>
+        <form id="paperBackupForm">
+          <div class="grid2"><label>Paper version<input id="paperBackupVersion" placeholder="e.g. Working Draft 2026-09-29" required></label><label>Milestone / title<input id="paperBackupTitle" placeholder="e.g. Pre-Chapter 2 revision" required></label></div>
+          <label>What changed / why this copy matters<textarea id="paperBackupDescription" rows="3" placeholder="Briefly note the sections revised, major decisions, or what you plan to change next."></textarea></label>
+          <label>Paper file<input id="paperBackupFile" type="file" accept=".docx,.doc,.pdf,.odt,.rtf,.txt" required><small>DOCX or PDF recommended. The original file is preserved and a SHA-256 checksum is recorded.</small></label>
+          <div class="actions"><button type="submit">Save paper backup</button></div>
+          <div id="paperBackupProgress" class="progress hidden"><div></div><span></span></div>
+        </form>
+      </div>
+      <div id="paperBackupList" class="cards"></div>
     </section>
   </main>
 
@@ -189,6 +205,6 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="seed-data.js?v=20260818-cloudsync1"></script>
-  <script src="app.js?v=20260929-planedit1"></script>
+  <script src="app.js?v=20260929-paperbackups1"></script>
 </body>
 </html>

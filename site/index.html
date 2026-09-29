@@ -92,7 +92,13 @@
           <input type="hidden" id="sourceId">
           <div class="grid2"><label>Research theme<select id="sourceTheme"></select></label><label>Source type<select id="sourceType"><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Research Artifact</option><option>Other</option></select></label></div>
           <div class="grid2"><label>Priority<select id="sourcePriority"><option>High</option><option>Medium</option><option>Low</option></select></label><label>Status<select id="sourceStatus"><option>Not Started</option><option>In Progress</option><option>Read</option><option>Cited</option></select></label></div>
-          <label>Title<input id="sourceTitle" required></label>
+          <div class="source-primary-document">
+            <div class="source-edit-block-head"><div><h3>Document / article</h3><p>Keep the document and its article/source name together.</p></div></div>
+            <label>Attach or replace primary document<input id="sourceFile" type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg,.webp,.gif,.svg,.xlsx,.xls,.csv,.ppt,.pptx"><small id="sourcePrimaryFileHelp">Optional. Leave this blank while editing to keep the current document.</small></label>
+            <div id="sourceFileProgress" class="progress hidden"><div></div><span></span></div>
+            <div id="sourcePrimaryDocumentCurrent" class="source-primary-current hidden"></div>
+            <label>Article / source name<input id="sourceTitle" required></label>
+          </div>
           <div class="grid2"><label>Author(s) / creator / organization<input id="sourceAuthors"></label><label>Date / year<input id="sourceDate" placeholder="2025 or 2025-08-12"></label></div>
           <label>Journal / publisher<input id="sourcePublisher"></label>
           <label>APA citation / reference<textarea id="sourceApa" rows="2"></textarea></label>
@@ -101,8 +107,17 @@
           <div class="grid2"><label>Methodology<textarea id="sourceMethod" rows="2"></textarea></label><label>Likely paper section<input id="sourcePaperSection" list="sourcePaperSectionOptions" placeholder="e.g. Chapter 2 · Professional Judgment"><datalist id="sourcePaperSectionOptions"></datalist></label></div>
           <div class="grid2"><label>Original source URL<input id="sourceUrl" type="url" placeholder="https://…"></label><label>Tags<input id="sourceTags" placeholder="e.g. agency, OSCQR, RQ1"></label></div>
           <label>Existing archive filename<input id="sourceArchive" placeholder="Optional legacy/local archive filename"></label>
-          <label>Attach primary document now<input id="sourceFile" type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg,.webp,.gif,.svg,.xlsx,.xls,.csv,.ppt,.pptx"><small>Optional. You can also add PDFs, diagrams, screenshots, tables, and other files from the source card after saving.</small></label>
-          <div id="sourceFileProgress" class="progress hidden"><div></div><span></span></div>
+          <div id="sourceEditRelated" class="source-edit-related hidden">
+            <div class="source-edit-related-head"><div><h3>Source materials</h3><p>Edit the files, images, diagrams, and notes that belong to this source without hunting down the card again.</p></div></div>
+            <div class="source-edit-related-section">
+              <div class="source-section-head"><h4>Documents, diagrams &amp; images</h4><button type="button" class="ghost" id="sourceEditAddFile">Add file</button></div>
+              <div id="sourceEditAttachments"></div>
+            </div>
+            <div class="source-edit-related-section">
+              <div class="source-section-head"><h4>Notes &amp; annotations</h4><button type="button" id="sourceEditAddNote">Add note</button></div>
+              <div id="sourceEditAnnotations"></div>
+            </div>
+          </div>
           <div class="actions"><button type="button" id="sourceClear" class="ghost">Clear</button><button type="submit">Save source</button></div>
         </form>
       </div>

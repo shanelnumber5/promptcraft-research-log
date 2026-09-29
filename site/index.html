@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#171716">
   <title>PromptCraft Research & Development Hub</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260929-planedit1">
 </head>
 <body>
   <header class="topbar">
@@ -107,11 +107,55 @@
     </section>
 
     <section id="view-plan" class="view">
-      <div class="page-head"><div><h1>Research Plan</h1><p>Themes map, dissertation outline, and reading schedule imported from the research tracker.</p></div></div>
+      <div class="page-head"><div><h1>Research Plan</h1><p>A living plan for PromptCraft. Update themes, the paper outline, and the reading schedule as the project develops.</p></div></div>
       <div class="subtabs"><button class="subtab active" data-plan="themes">Themes Map</button><button class="subtab" data-plan="outline">Dissertation Outline</button><button class="subtab" data-plan="reading">Reading Schedule</button></div>
-      <div id="plan-themes" class="plan-view active"></div>
-      <div id="plan-outline" class="plan-view"></div>
-      <div id="plan-reading" class="plan-view"></div>
+
+      <div id="plan-themes" class="plan-view active">
+        <div class="plan-toolbar"><div><strong>Themes Map</strong><span>Revise the research themes as PromptCraft and the paper evolve.</span></div><button id="themeAdd" type="button">Add theme</button></div>
+        <div id="themeEditor" class="panel form-panel plan-editor hidden">
+          <form id="themeForm">
+            <input id="themeId" type="hidden">
+            <div class="grid2"><label>Theme<input id="themeName" required></label><label>Status<select id="themeStatus"><option>Not Started</option><option>In Progress</option><option>Established</option><option>Complete</option></select></label></div>
+            <label>Research question / purpose<textarea id="themeQuestion" rows="3"></textarea></label>
+            <label>Search terms<textarea id="themeSearch" rows="2"></textarea></label>
+            <div class="grid2"><label>Paper / dissertation chapters<textarea id="themeChapters" rows="3"></textarea></label><label>PromptCraft scenarios / features<textarea id="themeScenarios" rows="3"></textarea></label></div>
+            <label>Sources found<input id="themeSources" type="number" min="0" step="1" value="0"></label>
+            <div class="actions"><button id="themeCancel" class="ghost" type="button">Cancel</button><button type="submit">Save theme</button></div>
+          </form>
+        </div>
+        <div id="themesList"></div>
+      </div>
+
+      <div id="plan-outline" class="plan-view">
+        <div class="plan-toolbar"><div><strong>Dissertation Outline</strong><span>Edit the structure and questions as the professional paper takes shape.</span></div><button id="outlineAdd" type="button">Add outline item</button></div>
+        <div id="outlineEditor" class="panel form-panel plan-editor hidden">
+          <form id="outlineForm">
+            <input id="outlineId" type="hidden">
+            <div class="grid2"><label>Chapter / major section<input id="outlineChapter" required></label><label>Status<select id="outlineStatus"><option>Not Started</option><option>In Progress</option><option>Drafted</option><option>Complete</option></select></label></div>
+            <label>Section title<input id="outlineSection" required></label>
+            <label>Questions to answer<textarea id="outlineQuestions" rows="4"></textarea></label>
+            <label>Related research themes<textarea id="outlineThemes" rows="3"></textarea></label>
+            <div class="actions"><button id="outlineCancel" class="ghost" type="button">Cancel</button><button type="submit">Save outline item</button></div>
+          </form>
+        </div>
+        <div id="outlineList"></div>
+      </div>
+
+      <div id="plan-reading" class="plan-view">
+        <div class="plan-toolbar"><div><strong>Reading Schedule</strong><span>Add, revise, reprioritize, or retire readings as the literature needs change.</span></div><button id="readingAdd" type="button">Add reading</button></div>
+        <div id="readingEditor" class="panel form-panel plan-editor hidden">
+          <form id="readingForm">
+            <input id="readingId" type="hidden">
+            <div class="grid2"><label>Phase<input id="readingPhase" required></label><label>Research theme<input id="readingTheme"></label></div>
+            <label>Reading / search task<input id="readingTitle" required></label>
+            <label>Goal<textarea id="readingGoal" rows="3"></textarea></label>
+            <label>Target / timing<input id="readingTarget"></label>
+            <label class="check"><input id="readingDone" type="checkbox"> Completed</label>
+            <div class="actions"><button id="readingCancel" class="ghost" type="button">Cancel</button><button type="submit">Save reading</button></div>
+          </form>
+        </div>
+        <div id="readingList"></div>
+      </div>
     </section>
 
     <section id="view-backups" class="view">
@@ -145,6 +189,6 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="seed-data.js?v=20260818-cloudsync1"></script>
-  <script src="app.js?v=20260901-visualhistory1"></script>
+  <script src="app.js?v=20260929-planedit1"></script>
 </body>
 </html>

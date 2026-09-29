@@ -24,12 +24,15 @@ let cloud=false;
 let syncing=false;
 let adminKey=localStorage.getItem(ADMIN_KEY_STORAGE)||sessionStorage.getItem(ADMIN_KEY_STORAGE)||'';
 const IMAGE_TYPES=['Before','After','Prototype','Bug','Final','Reference','Process'];
+const MATERIAL_TYPES=['Article / PDF','Book / Chapter','Report / Policy','Dissertation / Thesis','Web Source','Dataset / Table','Diagram / Figure','Screenshot / Image','Presentation / Slide','Notes / Other'];
+const MATERIAL_STATUSES=['Captured','Reviewing','Annotated','Ready to Cite','Cited','Archived'];
+const ANNOTATION_TYPES=['Key finding','Direct quote','Paraphrase','Definition','Method / measure','Limitation','Figure / diagram','Table / data','Paper idea','Other'];
 const RESEARCH_PLAN_VERSION=2;
 let editingLogImages=[];
 let pendingLogImages=[];
 const imageUrlCache=new Map();
 
-function normalizeSeed(seed){if(!seed||!Array.isArray(seed.logs))throw new Error('PromptCraft base data failed to load. Check that seed-data.js is deployed beside app.js.');const x=clone(seed); x.logs=x.logs.map((e,i)=>({...e,id:e.id||'seed-log-'+i,phase:LEGACY_PHASE[e.phase]||e.phase,date:isoDate(e.date)})); x.sources=x.sources.map((s,i)=>({...s,id:s.id||'seed-source-'+i})); x.themes=(x.themes||[]).map((e,i)=>({...e,id:e.id||'seed-theme-'+i})); x.outline=(x.outline||[]).map((e,i)=>({...e,id:e.id||'seed-outline-'+i})); x.reading=(x.reading||[]).map((e,i)=>({...e,id:e.id||'seed-reading-'+i})); x.backups=x.backups||[]; x.paperBackups=x.paperBackups||[]; return x}
+function normalizeSeed(seed){if(!seed||!Array.isArray(seed.logs))throw new Error('PromptCraft base data failed to load. Check that seed-data.js is deployed beside app.js.');const x=clone(seed); x.logs=x.logs.map((e,i)=>({...e,id:e.id||'seed-log-'+i,phase:LEGACY_PHASE[e.phase]||e.phase,date:isoDate(e.date)})); x.sources=x.sources.map((s,i)=>({...s,id:s.id||'seed-source-'+i})); x.themes=(x.themes||[]).map((e,i)=>({...e,id:e.id||'seed-theme-'+i})); x.outline=(x.outline||[]).map((e,i)=>({...e,id:e.id||'seed-outline-'+i})); x.reading=(x.reading||[]).map((e,i)=>({...e,id:e.id||'seed-reading-'+i})); x.backups=x.backups||[]; x.paperBackups=x.paperBackups||[]; x.researchMaterials=x.researchMaterials||[]; return x}
 function isMissing(v){return v===undefined||v===null||v===''||(Array.isArray(v)&&v.length===0)}
 function mergeRecord(base,saved,forceKeys=[]){const out={...clone(base),...(saved||{})};for(const [k,v] of Object.entries(base)){if(isMissing(saved?.[k]))out[k]=clone(v)}for(const k of forceKeys){if(base[k]!==undefined)out[k]=clone(base[k])}return out}
 function mergeCollection(baseItems,savedItems,keyFn,forceKeys=[]){const saved=Array.isArray(savedItems)?savedItems:[];const used=new Set();const merged=baseItems.map(base=>{const key=keyFn(base);const idx=saved.findIndex((item,i)=>!used.has(i)&&keyFn(item)===key);if(idx<0)return clone(base);used.add(idx);return mergeRecord(base,saved[idx],forceKeys)});saved.forEach((item,i)=>{if(!used.has(i))merged.push(item)});return merged}
@@ -60,6 +63,7 @@ function mergeBaseData(saved){
  x.reading=mergePlanCollection(seed.reading,x.reading,r=>`${String(r.phase||'').trim().toLowerCase()}|${String(r.reading||'').trim().toLowerCase()}`);
  if(!Array.isArray(x.backups))x.backups=[];
  if(!Array.isArray(x.paperBackups))x.paperBackups=[];
+ if(!Array.isArray(x.researchMaterials))x.researchMaterials=[];
  return applyTombstones(applyResearchPlanMigration(x,seed))
 }
 function loadLocal(){try{const raw=localStorage.getItem(STORAGE_KEY);if(raw)return mergeBaseData(JSON.parse(raw))}catch{}return normalizeSeed(window.PROMPTCRAFT_SEED)}
@@ -70,6 +74,7 @@ function recordKey(type,item){
  if(type==='themes')return item.id||String(item.theme||'').trim().toLowerCase();
  if(type==='outline')return item.id||`${String(item.chapter||'').trim().toLowerCase()}|${String(item.section||'').trim().toLowerCase()}`;
  if(type==='reading')return item.id||`${String(item.phase||'').trim().toLowerCase()}|${String(item.reading||'').trim().toLowerCase()}`;
+ if(type==='researchMaterials')return item.id||`${String(item.title||'').trim().toLowerCase()}|${String(item.fileName||'').trim().toLowerCase()}`;
  return item.id||`${item.version||''}|${item.fileName||''}|${item.created||''}`;
 }
 function semanticKey(type,item){
@@ -78,6 +83,7 @@ function semanticKey(type,item){
  if(type==='themes')return String(item.theme||'').trim().toLowerCase();
  if(type==='outline')return `${String(item.chapter||'').trim().toLowerCase()}|${String(item.section||'').trim().toLowerCase()}`;
  if(type==='reading')return `${String(item.phase||'').trim().toLowerCase()}|${String(item.reading||'').trim().toLowerCase()}`;
+ if(type==='researchMaterials')return item.id||`${String(item.title||'').trim().toLowerCase()}|${String(item.fileName||'').trim().toLowerCase()}`;
  return item.id||`${item.version||''}|${item.fileName||''}|${item.created||''}`;
 }
 function syncCollection(type,localItems,remoteItems){
@@ -96,11 +102,11 @@ function syncCollection(type,localItems,remoteItems){
 }
 function normalizeDeleted(x){
  const d=x&&typeof x==='object'?x:{};
- const out={};for(const type of ['logs','sources','themes','outline','reading','backups','paperBackups'])out[type]=Array.isArray(d[type])?d[type]:[];return out
+ const out={};for(const type of ['logs','sources','themes','outline','reading','backups','paperBackups','researchMaterials'])out[type]=Array.isArray(d[type])?d[type]:[];return out
 }
 function mergeDeleted(a,b){
  const out=normalizeDeleted(a),other=normalizeDeleted(b);
- for(const type of ['logs','sources','themes','outline','reading','backups','paperBackups']){
+ for(const type of ['logs','sources','themes','outline','reading','backups','paperBackups','researchMaterials']){
    const map=new Map();
    [...out[type],...other[type]].forEach(t=>{const k=t.id||t.key;if(!k)return;const prev=map.get(k);if(!prev||(t.deletedAt||'')>(prev.deletedAt||''))map.set(k,t)});
    out[type]=[...map.values()];
@@ -109,7 +115,7 @@ function mergeDeleted(a,b){
 }
 function applyTombstones(x){
  x.deleted=normalizeDeleted(x.deleted);
- for(const type of ['logs','sources','themes','outline','reading','backups','paperBackups']){
+ for(const type of ['logs','sources','themes','outline','reading','backups','paperBackups','researchMaterials']){
    const tombs=x.deleted[type]||[];
    x[type]=(x[type]||[]).filter(item=>!tombs.some(t=>(t.id&&t.id===item.id)||(t.key&&t.key===semanticKey(type,item))));
  }
@@ -118,7 +124,7 @@ function applyTombstones(x){
 function mergeSyncStates(localState,remoteState){
  const l=mergeBaseData(localState||{}),r=mergeBaseData(remoteState||{});
  const out={...clone(r),...clone(l)};
- for(const type of ['logs','sources','themes','outline','reading','backups','paperBackups'])out[type]=syncCollection(type,l[type],r[type]);
+ for(const type of ['logs','sources','themes','outline','reading','backups','paperBackups','researchMaterials'])out[type]=syncCollection(type,l[type],r[type]);
  out.deleted=mergeDeleted(l.deleted,r.deleted);
  return applyTombstones(out)
 }
@@ -213,7 +219,7 @@ async function hydrateImages(root=document){
 }
 window.openDevelopmentImage=async(entryId,imageId)=>{const found=findImageMeta(imageId);if(!found)return;const modal=$('#imageModal'),img=$('#imageModalImg'),cap=$('#imageModalCaption');img.src=await getDevelopmentImageUrl(found.img);img.alt=found.img.caption||found.img.fileName||'Development image';cap.textContent=[found.img.imageType,found.img.caption,found.log.title].filter(Boolean).join(' · ');modal.classList.remove('hidden');document.body.classList.add('modal-open')};
 function closeImageModal(){$('#imageModal').classList.add('hidden');$('#imageModalImg').removeAttribute('src');document.body.classList.remove('modal-open')}
-function render(){initSelects();renderLogs();renderVisualHistory();renderSources();renderPlans();renderBackups();renderPaperBackups();setStorageBadge()}
+function render(){initSelects();renderLogs();renderVisualHistory();renderSources();renderResearchMaterials();renderPlans();renderBackups();renderPaperBackups();setStorageBadge()}
 function logImagesHtml(e){const imgs=Array.isArray(e.images)?e.images:[];if(!imgs.length)return'';return `<div class="dev-image-gallery">${imgs.map(img=>imageMetaHtml(img,e.id,false)).join('')}</div>`}
 function renderLogs(){let items=[...state.logs].sort((a,b)=>(b.date||'').localeCompare(a.date||''));const q=$('#logSearch').value.toLowerCase().trim(),phase=$('#logFilter').value;if(q)items=items.filter(e=>JSON.stringify(e).toLowerCase().includes(q));if(phase)items=items.filter(e=>e.phase===phase);$('#logCount').textContent=state.logs.length;$('#phaseCount').textContent=new Set(state.logs.map(e=>e.phase)).size;$('#logList').innerHTML=items.length?items.map(e=>`<article class="card"><div class="card-head"><div><span class="phase">${esc(e.phase)}</span><h3>${esc(e.title)}</h3><div class="meta">${esc(humanDate(e.date))}</div></div></div><div class="card-body"><div><h4>What happened</h4><p>${esc(e.what)}</p></div><div><h4>Why / rationale & reflection</h4><p>${esc(e.why)}</p></div></div>${logImagesHtml(e)}<div class="tags">${(e.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="card-actions"><button class="ghost" onclick="editLog('${e.id}')">Edit</button><button class="ghost danger" onclick="deleteLog('${e.id}')">Delete</button></div></article>`).join(''):'<div class="empty">No matching development entries.</div>';hydrateImages($('#logList'))}
 function clearLog(){revokePendingPreviews();editingLogImages=[];pendingLogImages=[];Object.assign($('#logForm'),{});$('#logId').value='';$('#logDate').value=today();$('#logPhase').value='Iteration';$('#logTitle').value='';$('#logWhat').value='';$('#logWhy').value='';$('#logTags').value='';$('#logImages').value='';$('#logFormTitle').textContent='Add new entry';renderLogImageEditor()}
@@ -249,6 +255,41 @@ function renderSources(){
 function clearSource(){for(const id of ['sourceId','sourceTitle','sourceAuthors','sourceDate','sourcePublisher','sourceApa','sourceArgument','sourceConnection','sourceMethod','sourceNotes','sourceArchive'])$('#'+id).value='';$('#sourcePriority').value='High';$('#sourceStatus').value='Not Started';$('#sourceFormTitle').textContent='Add research source'}
 window.editSource=id=>{const s=state.sources.find(x=>x.id===id);if(!s)return;for(const [id,key] of [['sourceId','id'],['sourceTitle','title'],['sourceAuthors','authors'],['sourceDate','date'],['sourcePublisher','publisher'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourceNotes','notes'],['sourceArchive','archiveFile'],['sourceTheme','theme'],['sourcePriority','priority'],['sourceStatus','status']])$('#'+id).value=s[key]||'';$('#sourceFormTitle').textContent='Edit research source';scrollTo({top:120,behavior:'smooth'})}
 window.deleteSource=async id=>{if(!confirm('Delete this research source?'))return;const item=state.sources.find(x=>x.id===id);addTombstone('sources',item);state.sources=state.sources.filter(x=>x.id!==id);await persist();renderSources();toast('Source deleted')}
+
+
+function safeHref(url){try{const u=new URL(String(url||''),location.href);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return''}}
+function materialFileId(m){return m?.fileId||m?.id||''}
+function materialThemeOptions(selected=''){const names=[...new Set([...(state.themes||[]).map(x=>x.theme).filter(Boolean),...SOURCE_FOLDERS])].sort((a,b)=>a.localeCompare(b));return '<option value="">No theme selected</option>'+names.map(x=>`<option value="${esc(x)}" ${x===selected?'selected':''}>${esc(x)}</option>`).join('')}
+function materialSourceOptions(selected=''){const items=[...(state.sources||[])].sort((a,b)=>(a.title||'').localeCompare(b.title||''));return '<option value="">Not linked to a Research Library source</option>'+items.map(x=>`<option value="${esc(x.id)}" ${x.id===selected?'selected':''}>${esc(x.title)}</option>`).join('')}
+function refreshResearchMaterialOptions(){
+ const theme=$('#materialTheme'),source=$('#materialSource'),themeFilter=$('#materialThemeFilter');
+ if(theme){const selected=theme.value;theme.innerHTML=materialThemeOptions(selected)}
+ if(source){const selected=source.value;source.innerHTML=materialSourceOptions(selected)}
+ if(themeFilter){const selected=themeFilter.value;themeFilter.innerHTML='<option value="">All themes</option>'+materialThemeOptions(selected).replace('<option value="">No theme selected</option>','');themeFilter.value=selected}
+ const dl=$('#paperSectionOptions');if(dl)dl.innerHTML=(state.outline||[]).map(o=>`<option value="${esc([o.chapter,o.section].filter(Boolean).join(' · '))}"></option>`).join('');
+}
+function materialAnnotationHtml(m,a){return `<article class="annotation-card"><div class="annotation-head"><div><span class="annotation-type">${esc(a.type||'Note')}</span>${a.location?`<span class="annotation-location">${esc(a.location)}</span>`:''}</div><div class="meta">${a.created?new Date(a.created).toLocaleDateString():''}</div></div><div class="annotation-text">${esc(a.text||'')}</div>${a.interpretation?`<div class="annotation-detail"><b>Why it matters</b><p>${esc(a.interpretation)}</p></div>`:''}${a.paperUse?`<div class="annotation-detail"><b>Use in paper</b><p>${esc(a.paperUse)}</p></div>`:''}${a.tags?.length?`<div class="tags">${a.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}<div class="card-actions"><button class="ghost" onclick="editMaterialAnnotation('${m.id}','${a.id}')">Edit note</button><button class="ghost danger" onclick="deleteMaterialAnnotation('${m.id}','${a.id}')">Delete note</button></div></article>`}
+function renderResearchMaterials(){
+ refreshResearchMaterialOptions();
+ let items=[...(state.researchMaterials||[])];
+ const q=($('#materialSearch')?.value||'').toLowerCase().trim(),type=$('#materialTypeFilter')?.value||'',status=$('#materialStatusFilter')?.value||'',theme=$('#materialThemeFilter')?.value||'';
+ if(q)items=items.filter(m=>JSON.stringify(m).toLowerCase().includes(q));if(type)items=items.filter(m=>m.materialType===type);if(status)items=items.filter(m=>m.status===status);if(theme)items=items.filter(m=>m.theme===theme);
+ items.sort((a,b)=>(b.updatedAt||b.created||'').localeCompare(a.updatedAt||a.created||''));
+ const totalNotes=(state.researchMaterials||[]).reduce((n,m)=>n+(m.annotations?.length||0),0);if($('#materialCount'))$('#materialCount').textContent=(state.researchMaterials||[]).length;if($('#annotationCount'))$('#annotationCount').textContent=totalNotes;
+ const list=$('#materialList');if(!list)return;if(!items.length){list.innerHTML='<div class="empty">No matching paper materials yet. Add PDFs, documents, diagrams, screenshots, tables, or other evidence you may use in the paper.</div>';return}
+ list.innerHTML=items.map(m=>{const linked=(state.sources||[]).find(s=>s.id===m.sourceId),href=safeHref(m.url),anns=[...(m.annotations||[])].sort((a,b)=>(a.location||'').localeCompare(b.location||'',undefined,{numeric:true}));return `<article class="card material-card"><div class="card-head"><div><span class="phase">${esc(m.materialType||'Research material')}</span><h3>${esc(m.title)}</h3><div class="meta">${esc(m.creator||'')}${m.date?' · '+esc(m.date):''}${m.theme?' · '+esc(m.theme):''}</div></div><span class="status-pill">${esc(m.status||'Captured')}</span></div>${m.citation?`<div class="citation material-citation">${esc(m.citation)}</div>`:''}<div class="material-meta-grid">${linked?`<div><b>Linked source</b><span>${esc(linked.title)}</span></div>`:''}${m.paperSection?`<div><b>Paper section</b><span>${esc(m.paperSection)}</span></div>`:''}${m.fileName?`<div><b>Attached file</b><span>${esc(m.fileName)} · ${fmtBytes(m.size||0)}</span></div>`:''}${href?`<div><b>Source link</b><span><a href="${esc(href)}" target="_blank" rel="noopener">Open original source</a></span></div>`:''}</div>${m.tags?.length?`<div class="tags">${m.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}<div class="material-actions"><button onclick="addMaterialAnnotation('${m.id}')">Add note / annotation</button>${m.fileName?`<button class="ghost" onclick="openResearchMaterial('${m.id}')">Open file</button><button class="ghost" onclick="downloadResearchMaterial('${m.id}')">Download</button>`:''}<button class="ghost" onclick="editResearchMaterial('${m.id}')">Edit material</button><button class="ghost danger" onclick="deleteResearchMaterial('${m.id}')">Delete</button></div><div class="annotations-wrap"><div class="annotations-title"><h4>Notes & annotations</h4><span>${anns.length}</span></div>${anns.length?anns.map(a=>materialAnnotationHtml(m,a)).join(''):'<div class="annotation-empty">No page notes yet. Add the page, figure, table, section, or location as soon as you capture an idea.</div>'}</div></article>`}).join('');
+}
+function clearResearchMaterial(){for(const id of ['materialId','materialTitle','materialCreator','materialDate','materialCitation','materialUrl','materialPaperSection','materialTags']){const el=$('#'+id);if(el)el.value=''}if($('#materialType'))$('#materialType').value=MATERIAL_TYPES[0];if($('#materialStatus'))$('#materialStatus').value='Captured';if($('#materialTheme'))$('#materialTheme').value='';if($('#materialSource'))$('#materialSource').value='';if($('#materialFile'))$('#materialFile').value='';if($('#materialCurrentFile'))$('#materialCurrentFile').textContent='';if($('#materialFormTitle'))$('#materialFormTitle').textContent='Add paper material'}
+window.editResearchMaterial=id=>{const m=(state.researchMaterials||[]).find(x=>x.id===id);if(!m)return;refreshResearchMaterialOptions();for(const [field,key] of [['materialId','id'],['materialTitle','title'],['materialCreator','creator'],['materialDate','date'],['materialCitation','citation'],['materialUrl','url'],['materialPaperSection','paperSection']])$('#'+field).value=m[key]||'';$('#materialTags').value=(m.tags||[]).join(', ');$('#materialType').value=m.materialType||MATERIAL_TYPES[0];$('#materialStatus').value=m.status||'Captured';$('#materialTheme').value=m.theme||'';$('#materialSource').value=m.sourceId||'';$('#materialCurrentFile').textContent=m.fileName?`Current file: ${m.fileName} (${fmtBytes(m.size||0)}). Choose a new file only to replace it.`:'No file currently attached.';$('#materialFormTitle').textContent='Edit paper material';$('#materialFormPanel').scrollIntoView({behavior:'smooth',block:'start'})}
+function clearMaterialAnnotation(){for(const id of ['materialAnnotationMaterialId','materialAnnotationId','annotationLocation','annotationText','annotationInterpretation','annotationPaperUse','annotationTags']){const el=$('#'+id);if(el)el.value=''}if($('#annotationType'))$('#annotationType').value=ANNOTATION_TYPES[0];$('#materialAnnotationEditor')?.classList.add('hidden')}
+window.addMaterialAnnotation=id=>{const m=(state.researchMaterials||[]).find(x=>x.id===id);if(!m)return;clearMaterialAnnotation();$('#materialAnnotationMaterialId').value=id;$('#annotationFormTitle').textContent=`Add note / annotation · ${m.title}`;$('#materialAnnotationEditor').classList.remove('hidden');$('#materialAnnotationEditor').scrollIntoView({behavior:'smooth',block:'start'})}
+window.editMaterialAnnotation=(materialId,annotationId)=>{const m=(state.researchMaterials||[]).find(x=>x.id===materialId),a=m?.annotations?.find(x=>x.id===annotationId);if(!a)return;$('#materialAnnotationMaterialId').value=materialId;$('#materialAnnotationId').value=annotationId;$('#annotationLocation').value=a.location||'';$('#annotationType').value=a.type||ANNOTATION_TYPES[0];$('#annotationText').value=a.text||'';$('#annotationInterpretation').value=a.interpretation||'';$('#annotationPaperUse').value=a.paperUse||'';$('#annotationTags').value=(a.tags||[]).join(', ');$('#annotationFormTitle').textContent=`Edit note / annotation · ${m.title}`;$('#materialAnnotationEditor').classList.remove('hidden');$('#materialAnnotationEditor').scrollIntoView({behavior:'smooth',block:'start'})}
+window.deleteMaterialAnnotation=async(materialId,annotationId)=>{const m=(state.researchMaterials||[]).find(x=>x.id===materialId);if(!m||!confirm('Delete this note / annotation?'))return;m.annotations=(m.annotations||[]).filter(x=>x.id!==annotationId);m.updatedAt=new Date().toISOString();await persist();renderResearchMaterials();toast('Annotation deleted')}
+async function getResearchMaterialBlob(m,progressId='materialProgress'){const storageId=materialFileId(m);if(!storageId||!m.fileName)throw new Error('No file is attached to this material.');if(m.storage==='cloud'){const parts=[];for(let i=0;i<(m.chunkCount||0);i++){progress(Math.round(((i+1)/(m.chunkCount||1))*90),`Loading chunk ${i+1} of ${m.chunkCount}…`,progressId);const x=await api(`/.netlify/functions/backup?backupId=${encodeURIComponent(storageId)}&index=${i}`);const bin=atob(x.data),u=new Uint8Array(bin.length);for(let j=0;j<bin.length;j++)u[j]=bin.charCodeAt(j);parts.push(u)}return new Blob(parts,{type:m.type||'application/octet-stream'})}const blob=await idbGet(storageId);if(!blob)throw new Error('The attached file is not stored in this browser. Connect cloud storage or reattach the file.');return blob}
+async function deleteResearchMaterialFile(m){if(!m?.fileName)return;const storageId=materialFileId(m);if(m.storage==='cloud'){if(!adminKey)throw new Error('Connect with the cloud admin key before deleting or replacing a stored research file.');await api('/.netlify/functions/backup',{method:'POST',body:JSON.stringify({action:'delete',backupId:storageId,chunkCount:m.chunkCount||0})})}else await idbDelete(storageId)}
+window.downloadResearchMaterial=async id=>{const m=(state.researchMaterials||[]).find(x=>x.id===id);if(!m)return;try{progress(5,'Preparing research file…','materialProgress');const blob=await getResearchMaterialBlob(m,'materialProgress'),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=m.fileName;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);hideProgress('materialProgress');toast('Research file download ready')}catch(e){hideProgress('materialProgress');toast(e.message)}}
+window.openResearchMaterial=async id=>{const m=(state.researchMaterials||[]).find(x=>x.id===id);if(!m)return;try{progress(5,'Opening research file…','materialProgress');const blob=await getResearchMaterialBlob(m,'materialProgress'),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);hideProgress('materialProgress')}catch(e){hideProgress('materialProgress');toast(e.message)}}
+window.deleteResearchMaterial=async id=>{const m=(state.researchMaterials||[]).find(x=>x.id===id);if(!m||!confirm(`Delete research material “${m.title}” and its notes?`))return;try{await deleteResearchMaterialFile(m);addTombstone('researchMaterials',m);state.researchMaterials=state.researchMaterials.filter(x=>x.id!==id);await persist();renderResearchMaterials();toast('Research material deleted')}catch(e){toast(e.message)}}
 
 function renderPlans(){
  const themes=$('#themesList'),outline=$('#outlineList'),reading=$('#readingList');if(!themes||!outline||!reading)return;
@@ -299,6 +340,11 @@ async function migrateLocalBackups(){
    if(b.storage!=='local')continue;
    try{const blob=await idbGet(b.id);if(!blob)continue;await uploadBlobAsCloudBackup(b,blob);moved++}catch(e){console.warn('Backup migration skipped',b.id,e)}
   }
+ }
+ for(const m of state.researchMaterials||[]){
+   if(m.storage!=='local'||!m.fileName)continue;
+   const storageId=materialFileId(m);
+   try{const blob=await idbGet(storageId);if(!blob)continue;const holder={id:storageId,storage:m.storage,chunkCount:m.chunkCount,updatedAt:m.updatedAt};await uploadBlobAsCloudBackup(holder,blob);m.storage=holder.storage;m.chunkCount=holder.chunkCount;m.updatedAt=holder.updatedAt;moved++}catch(e){console.warn('Research file migration skipped',storageId,e)}
  }
  if(moved){persistLocal();await api('/.netlify/functions/state',{method:'POST',body:JSON.stringify({state})})}
  return moved
@@ -354,6 +400,8 @@ async function bootstrap(){
  render();
  clearLog();
  clearSource();
+ clearResearchMaterial();
+ clearMaterialAnnotation();
  await pullCloudReadOnly({silent:true});
  if(adminKey){
    const ok=await syncCloud({silent:true});
@@ -374,11 +422,16 @@ $('#imageModalClose').onclick=closeImageModal;$('#imageModal').onclick=e=>{if(e.
 // Events
 $$('.tab').forEach(b=>b.onclick=()=>{$$('.tab').forEach(x=>x.classList.toggle('active',x===b));$$('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+b.dataset.view))});
 $$('.subtab').forEach(b=>b.onclick=()=>{$$('.subtab').forEach(x=>x.classList.toggle('active',x===b));$$('.plan-view').forEach(v=>v.classList.toggle('active',v.id==='plan-'+b.dataset.plan))});
+$$('.research-subtab').forEach(b=>b.onclick=()=>{$$('.research-subtab').forEach(x=>x.classList.toggle('active',x===b));$$('.research-view').forEach(v=>v.classList.toggle('active',v.id==='research-'+b.dataset.research))});
 $('#connectBtn').onclick=()=>{$('#cloudPanel').classList.toggle('hidden');$('#adminKey').value=adminKey;$('#rememberKey').checked=!!localStorage.getItem(ADMIN_KEY_STORAGE)};$('#syncBtn').onclick=()=>syncCloud();$('#cloudDisconnect').onclick=disconnectCloud;$('#cloudCancel').onclick=()=>$('#cloudPanel').classList.add('hidden');$('#cloudConnectConfirm').onclick=connectCloud;
-$('#logSearch').oninput=renderLogs;$('#logFilter').onchange=renderLogs;$('#sourceSearch').oninput=renderSources;$('#sourceThemeFilter').onchange=renderSources;$('#sourceStatusFilter').onchange=renderSources;
-$('#logClear').onclick=clearLog;$('#sourceClear').onclick=clearSource;$('#exportLogBtn').onclick=exportLog;$('#restoreLogBtn').onclick=restoreBaseLogs;$('#exportAllBtn').onclick=exportAll;
+$('#logSearch').oninput=renderLogs;$('#logFilter').onchange=renderLogs;$('#sourceSearch').oninput=renderSources;$('#sourceThemeFilter').onchange=renderSources;$('#sourceStatusFilter').onchange=renderSources;$('#materialSearch').oninput=renderResearchMaterials;$('#materialTypeFilter').onchange=renderResearchMaterials;$('#materialStatusFilter').onchange=renderResearchMaterials;$('#materialThemeFilter').onchange=renderResearchMaterials;
+$('#logClear').onclick=clearLog;$('#sourceClear').onclick=clearSource;$('#materialClear').onclick=clearResearchMaterial;$('#annotationCancel').onclick=clearMaterialAnnotation;$('#exportLogBtn').onclick=exportLog;$('#restoreLogBtn').onclick=restoreBaseLogs;$('#exportAllBtn').onclick=exportAll;
 $('#logForm').onsubmit=async e=>{e.preventDefault();const id=$('#logId').value||uuid(),original=state.logs.find(x=>x.id===id),originalImages=clone(original?.images||[]);if(pendingLogImages.length&&!adminKey)return toast('Connect cloud storage before saving new development images.');try{const keptIds=new Set(editingLogImages.map(x=>x.id));for(const oldImg of originalImages)if(!keptIds.has(oldImg.id))await deleteDevelopmentImageBlob(oldImg);const uploaded=[];for(const item of pendingLogImages)uploaded.push(await uploadDevelopmentImage(item));const images=[...editingLogImages,...uploaded];const obj={id,date:$('#logDate').value,phase:$('#logPhase').value,title:$('#logTitle').value.trim(),what:$('#logWhat').value.trim(),why:$('#logWhy').value.trim(),tags:$('#logTags').value.split(',').map(x=>x.trim()).filter(Boolean),images,updatedAt:new Date().toISOString()};const i=state.logs.findIndex(x=>x.id===id);if(i>=0)state.logs[i]=obj;else state.logs.push(obj);await persist();clearLog();renderLogs();renderVisualHistory();toast(images.length?'Development entry and images saved':'Development entry saved')}catch(err){console.error(err);toast(err.message||'Could not save development entry')}};
 $('#sourceForm').onsubmit=async e=>{e.preventDefault();const id=$('#sourceId').value||uuid(),obj={id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,title:$('#sourceTitle').value.trim(),authors:$('#sourceAuthors').value.trim(),date:$('#sourceDate').value.trim(),publisher:$('#sourcePublisher').value.trim(),apa:$('#sourceApa').value.trim(),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,notes:$('#sourceNotes').value.trim(),archiveFile:$('#sourceArchive').value.trim(),updatedAt:new Date().toISOString()};const i=state.sources.findIndex(x=>x.id===id);if(i>=0)state.sources[i]=obj;else state.sources.push(obj);await persist();clearSource();renderSources();toast('Research source saved')};
+
+$('#materialForm').onsubmit=async e=>{e.preventDefault();const id=$('#materialId').value||uuid(),existing=(state.researchMaterials||[]).find(x=>x.id===id),file=$('#materialFile').files[0];if(!existing&&!file&&!$('#materialUrl').value.trim())return toast('Attach a file or add a source URL for this research material.');let stored=existing?{fileId:existing.fileId,fileName:existing.fileName,size:existing.size,type:existing.type,sha256:existing.sha256,storage:existing.storage,chunkCount:existing.chunkCount}:{};try{if(file){if(cloud&&!adminKey)throw new Error('Connect with the cloud admin key before uploading research files.');progress(2,'Calculating file checksum…','materialProgress');const fileId=uuid(),sha256=await hashFile(file),location=await storeBackupFile(fileId,file,'materialProgress');const previous=existing?{...existing}:null;stored={fileId,fileName:file.name,size:file.size,type:file.type||'application/octet-stream',sha256,...location};if(previous?.fileName)await deleteResearchMaterialFile(previous)}const obj={id,materialType:$('#materialType').value,status:$('#materialStatus').value,title:$('#materialTitle').value.trim(),creator:$('#materialCreator').value.trim(),date:$('#materialDate').value.trim(),sourceId:$('#materialSource').value,theme:$('#materialTheme').value,citation:$('#materialCitation').value.trim(),url:$('#materialUrl').value.trim(),paperSection:$('#materialPaperSection').value.trim(),tags:$('#materialTags').value.split(',').map(x=>x.trim()).filter(Boolean),annotations:existing?.annotations||[],created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString(),...stored};const i=state.researchMaterials.findIndex(x=>x.id===id);if(i>=0)state.researchMaterials[i]=obj;else state.researchMaterials.push(obj);await persist();hideProgress('materialProgress');clearResearchMaterial();renderResearchMaterials();toast(file?'Research material and file saved':'Research material saved')}catch(err){hideProgress('materialProgress');toast(err.message);console.error(err)}};
+$('#materialAnnotationForm').onsubmit=async e=>{e.preventDefault();const materialId=$('#materialAnnotationMaterialId').value,m=(state.researchMaterials||[]).find(x=>x.id===materialId);if(!m)return toast('Research material not found.');const id=$('#materialAnnotationId').value||uuid(),old=(m.annotations||[]).find(x=>x.id===id),a={id,location:$('#annotationLocation').value.trim(),type:$('#annotationType').value,text:$('#annotationText').value.trim(),interpretation:$('#annotationInterpretation').value.trim(),paperUse:$('#annotationPaperUse').value.trim(),tags:$('#annotationTags').value.split(',').map(x=>x.trim()).filter(Boolean),created:old?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};m.annotations=m.annotations||[];const i=m.annotations.findIndex(x=>x.id===id);if(i>=0)m.annotations[i]=a;else m.annotations.push(a);m.updatedAt=new Date().toISOString();await persist();clearMaterialAnnotation();renderResearchMaterials();toast('Annotation saved')};
+
 $('#themeAdd').onclick=()=>{clearTheme();openPlanEditor('themeEditor')};$('#outlineAdd').onclick=()=>{clearOutline();openPlanEditor('outlineEditor')};$('#readingAdd').onclick=()=>{clearReading();openPlanEditor('readingEditor')};
 for(const [id,clear] of [['themeCancel',clearTheme],['outlineCancel',clearOutline],['readingCancel',clearReading]])$('#'+id).onclick=()=>{clear();hidePlanEditors()};
 $('#themeForm').onsubmit=async e=>{e.preventDefault();const id=$('#themeId').value||uuid(),obj={id,theme:$('#themeName').value.trim(),question:$('#themeQuestion').value.trim(),searchTerms:$('#themeSearch').value.trim(),chapters:$('#themeChapters').value.trim(),scenarios:$('#themeScenarios').value.trim(),sourcesFound:Number($('#themeSources').value)||0,status:$('#themeStatus').value,updatedAt:new Date().toISOString()};const i=state.themes.findIndex(x=>x.id===id);if(i>=0)state.themes[i]=obj;else state.themes.push(obj);await persist();clearTheme();hidePlanEditors();renderPlans();toast('Research theme saved')};

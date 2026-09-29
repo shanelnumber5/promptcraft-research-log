@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#171716">
   <title>PromptCraft Research & Development Hub</title>
-  <link rel="stylesheet" href="style.css?v=20260929-planedit1">
+  <link rel="stylesheet" href="style.css?v=20260929-researchmaterials1">
 </head>
 <body>
   <header class="topbar">
@@ -82,9 +82,12 @@
 
     <section id="view-research" class="view">
       <div class="page-head">
-        <div><h1>Research Library</h1><p>Sources from the PromptCraft research tracker, with dissertation connections and reading status.</p></div>
+        <div><h1>Research Library</h1><p>Keep the sources, files, page-level notes, diagrams, and evidence that may support the professional paper in one place.</p></div>
         <div class="stats"><div><b id="sourceCount">0</b><span>sources</span></div><div><b id="readCount">0</b><span>read/cited</span></div></div>
       </div>
+      <div class="research-subtabs"><button class="research-subtab active" data-research="sources">Research Sources</button><button class="research-subtab" data-research="materials">Paper Materials & Notes</button></div>
+
+      <div id="research-sources" class="research-view active">
       <div class="panel form-panel compact-form">
         <h2 id="sourceFormTitle">Add research source</h2>
         <form id="sourceForm">
@@ -104,6 +107,47 @@
       </div>
       <div class="filters"><input id="sourceSearch" placeholder="Search sources…"><select id="sourceThemeFilter"></select><select id="sourceStatusFilter"><option value="">All statuses</option><option>Not Started</option><option>In Progress</option><option>Read</option><option>Cited</option></select></div>
       <div id="sourceList" class="cards"></div>
+      </div>
+
+      <div id="research-materials" class="research-view">
+        <div class="page-head research-materials-head">
+          <div><h2>Paper Materials & Notes</h2><p>Store the actual files you may use, then capture page numbers, quotations, findings, diagrams, interpretations, and where each item belongs in the paper.</p></div>
+          <div class="stats"><div><b id="materialCount">0</b><span>materials</span></div><div><b id="annotationCount">0</b><span>annotations</span></div></div>
+        </div>
+        <div class="warning"><strong>Source first, note second.</strong> Keep page, figure, table, or section locations with each annotation so useful evidence does not turn into a mysterious sentence six weeks later.</div>
+        <div id="materialFormPanel" class="panel form-panel">
+          <h2 id="materialFormTitle">Add paper material</h2>
+          <form id="materialForm">
+            <input id="materialId" type="hidden">
+            <div class="grid2"><label>Material type<select id="materialType"><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Diagram / Figure</option><option>Screenshot / Image</option><option>Presentation / Slide</option><option>Notes / Other</option></select></label><label>Status<select id="materialStatus"><option>Captured</option><option>Reviewing</option><option>Annotated</option><option>Ready to Cite</option><option>Cited</option><option>Archived</option></select></label></div>
+            <label>Title<input id="materialTitle" required></label>
+            <div class="grid2"><label>Author / creator / organization<input id="materialCreator"></label><label>Date / year<input id="materialDate" placeholder="2026 or 2026-09-29"></label></div>
+            <div class="grid2"><label>Link to Research Library source<select id="materialSource"></select></label><label>Research theme<select id="materialTheme"></select></label></div>
+            <label>Citation / reference<textarea id="materialCitation" rows="2" placeholder="APA citation, source label, or enough information to identify the item"></textarea></label>
+            <label>Original source URL<input id="materialUrl" type="url" placeholder="https://…"></label>
+            <div class="grid2"><label>Likely paper section<input id="materialPaperSection" list="paperSectionOptions" placeholder="e.g. Chapter Two · Professional Judgment"><datalist id="paperSectionOptions"></datalist></label><label>Tags<input id="materialTags" placeholder="e.g. AI literacy, agency, OSCQR"></label></div>
+            <label>Attach document, image, or data file<input id="materialFile" type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg,.webp,.gif,.svg,.xlsx,.xls,.csv,.ppt,.pptx"><small id="materialCurrentFile">PDF, Word, images, spreadsheets, presentations, and text files are supported. The original file is preserved; when editing, leave this blank to keep the existing attachment.</small></label>
+            <div class="actions"><button id="materialClear" type="button" class="ghost">Clear</button><button type="submit">Save material</button></div>
+            <div id="materialProgress" class="progress hidden"><div></div><span></span></div>
+          </form>
+        </div>
+
+        <div id="materialAnnotationEditor" class="panel form-panel hidden">
+          <h2 id="annotationFormTitle">Add note / annotation</h2>
+          <form id="materialAnnotationForm">
+            <input id="materialAnnotationMaterialId" type="hidden"><input id="materialAnnotationId" type="hidden">
+            <div class="grid2"><label>Page(s) / location<input id="annotationLocation" placeholder="e.g. p. 14, pp. 22–24, Figure 3, Methods section"></label><label>Annotation type<select id="annotationType"><option>Key finding</option><option>Direct quote</option><option>Paraphrase</option><option>Definition</option><option>Method / measure</option><option>Limitation</option><option>Figure / diagram</option><option>Table / data</option><option>Paper idea</option><option>Other</option></select></label></div>
+            <label>Note / quote / paraphrase<textarea id="annotationText" rows="5" required placeholder="Capture the useful information. For direct quotations, preserve the exact wording and page number."></textarea></label>
+            <label>Why it matters / your interpretation<textarea id="annotationInterpretation" rows="3" placeholder="How does this connect to PromptCraft, the study, or the argument you are building?"></textarea></label>
+            <label>Planned use in the paper<textarea id="annotationPaperUse" rows="3" placeholder="Section, claim, comparison, figure, method decision, limitation, etc."></textarea></label>
+            <label>Tags<input id="annotationTags" placeholder="e.g. agency, overreliance, RQ1"></label>
+            <div class="actions"><button id="annotationCancel" type="button" class="ghost">Cancel</button><button type="submit">Save annotation</button></div>
+          </form>
+        </div>
+
+        <div class="filters material-filters"><input id="materialSearch" placeholder="Search materials and annotations…"><select id="materialTypeFilter"><option value="">All material types</option><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Diagram / Figure</option><option>Screenshot / Image</option><option>Presentation / Slide</option><option>Notes / Other</option></select><select id="materialStatusFilter"><option value="">All statuses</option><option>Captured</option><option>Reviewing</option><option>Annotated</option><option>Ready to Cite</option><option>Cited</option><option>Archived</option></select><select id="materialThemeFilter"><option value="">All themes</option></select></div>
+        <div id="materialList" class="cards material-list"></div>
+      </div>
     </section>
 
     <section id="view-plan" class="view">
@@ -205,6 +249,6 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="seed-data.js?v=20260818-cloudsync1"></script>
-  <script src="app.js?v=20260929-paperbackups1"></script>
+  <script src="app.js?v=20260929-researchmaterials1"></script>
 </body>
 </html>

@@ -108,7 +108,7 @@
 
     <section id="view-plan" class="view">
       <div class="page-head"><div><h1>Research Plan</h1><p>A living plan for PromptCraft. Update themes, the paper outline, and the reading schedule as the project develops.</p></div></div>
-      <div class="subtabs"><button class="subtab active" data-plan="themes">Themes Map</button><button class="subtab" data-plan="outline">Dissertation Outline</button><button class="subtab" data-plan="reading">Reading Schedule</button></div>
+      <div class="subtabs"><button class="subtab active" data-plan="themes">Themes Map</button><button class="subtab" data-plan="outline">Professional Paper Outline</button><button class="subtab" data-plan="reading">Reading Schedule</button></div>
 
       <div id="plan-themes" class="plan-view active">
         <div class="plan-toolbar"><div><strong>Themes Map</strong><span>Revise the research themes as PromptCraft and the paper evolve.</span></div><button id="themeAdd" type="button">Add theme</button></div>
@@ -118,7 +118,7 @@
             <div class="grid2"><label>Theme<input id="themeName" required></label><label>Status<select id="themeStatus"><option>Not Started</option><option>In Progress</option><option>Established</option><option>Complete</option></select></label></div>
             <label>Research question / purpose<textarea id="themeQuestion" rows="3"></textarea></label>
             <label>Search terms<textarea id="themeSearch" rows="2"></textarea></label>
-            <div class="grid2"><label>Paper / dissertation chapters<textarea id="themeChapters" rows="3"></textarea></label><label>PromptCraft scenarios / features<textarea id="themeScenarios" rows="3"></textarea></label></div>
+            <div class="grid2"><label>Paper sections / chapters<textarea id="themeChapters" rows="3"></textarea></label><label>PromptCraft scenarios / features<textarea id="themeScenarios" rows="3"></textarea></label></div>
             <label>Sources found<input id="themeSources" type="number" min="0" step="1" value="0"></label>
             <div class="actions"><button id="themeCancel" class="ghost" type="button">Cancel</button><button type="submit">Save theme</button></div>
           </form>
@@ -127,7 +127,7 @@
       </div>
 
       <div id="plan-outline" class="plan-view">
-        <div class="plan-toolbar"><div><strong>Dissertation Outline</strong><span>Edit the structure and questions as the professional paper takes shape.</span></div><button id="outlineAdd" type="button">Add outline item</button></div>
+        <div class="plan-toolbar"><div><strong>Professional Paper Outline</strong><span>Edit the structure and questions as the professional paper takes shape.</span></div><button id="outlineAdd" type="button">Add outline item</button></div>
         <div id="outlineEditor" class="panel form-panel plan-editor hidden">
           <form id="outlineForm">
             <input id="outlineId" type="hidden">

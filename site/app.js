@@ -24,6 +24,7 @@ let cloud=false;
 let syncing=false;
 let adminKey=localStorage.getItem(ADMIN_KEY_STORAGE)||sessionStorage.getItem(ADMIN_KEY_STORAGE)||'';
 const IMAGE_TYPES=['Before','After','Prototype','Bug','Final','Reference','Process'];
+const RESEARCH_PLAN_VERSION=2;
 let editingLogImages=[];
 let pendingLogImages=[];
 const imageUrlCache=new Map();
@@ -38,6 +39,18 @@ function mergePlanCollection(baseItems,savedItems,semanticFn){
  const merged=base.map(b=>{let idx=saved.findIndex((item,i)=>!used.has(i)&&item.id&&item.id===b.id);if(idx<0)idx=saved.findIndex((item,i)=>!used.has(i)&&semanticFn(item)===semanticFn(b));if(idx<0)return clone(b);used.add(idx);return mergeRecord(b,saved[idx])});
  saved.forEach((item,i)=>{if(!used.has(i))merged.push(item)});return merged
 }
+function applyResearchPlanMigration(x,seed){
+ x.meta=(x.meta&&typeof x.meta==='object')?x.meta:{};
+ const current=Number(x.meta.researchPlanVersion||0);
+ if(current<RESEARCH_PLAN_VERSION){
+   x.themes=clone(seed.themes||[]);
+   x.outline=clone(seed.outline||[]);
+   x.reading=clone(seed.reading||[]);
+   x.meta.researchPlanVersion=RESEARCH_PLAN_VERSION;
+   x.meta.researchPlanUpdated='2026-09-29';
+ }
+ return x
+}
 function mergeBaseData(saved){
  const seed=normalizeSeed(window.PROMPTCRAFT_SEED),x=(saved&&typeof saved==='object')?clone(saved):{};
  x.logs=mergeCollection(seed.logs,x.logs,e=>`${isoDate(e.date)}|${String(e.title||'').trim().toLowerCase()}`);
@@ -46,7 +59,7 @@ function mergeBaseData(saved){
  x.outline=mergePlanCollection(seed.outline,x.outline,o=>`${String(o.chapter||'').trim().toLowerCase()}|${String(o.section||'').trim().toLowerCase()}`);
  x.reading=mergePlanCollection(seed.reading,x.reading,r=>`${String(r.phase||'').trim().toLowerCase()}|${String(r.reading||'').trim().toLowerCase()}`);
  if(!Array.isArray(x.backups))x.backups=[];
- return x
+ return applyTombstones(applyResearchPlanMigration(x,seed))
 }
 function loadLocal(){try{const raw=localStorage.getItem(STORAGE_KEY);if(raw)return mergeBaseData(JSON.parse(raw))}catch{}return normalizeSeed(window.PROMPTCRAFT_SEED)}
 function persistLocal(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
@@ -238,7 +251,7 @@ window.deleteSource=async id=>{if(!confirm('Delete this research source?'))retur
 
 function renderPlans(){
  const themes=$('#themesList'),outline=$('#outlineList'),reading=$('#readingList');if(!themes||!outline||!reading)return;
- themes.innerHTML=state.themes.length?'<div class="plan-grid">'+state.themes.map(t=>`<article class="plan-card"><div class="card-head"><div><span class="status-pill">${esc(t.status)}</span><h3>${esc(t.theme)}</h3></div><div class="card-actions compact"><button class="ghost" onclick="editTheme('${t.id}')">Edit</button><button class="ghost danger" onclick="deleteTheme('${t.id}')">Delete</button></div></div><div class="label">Research question</div><p>${esc(t.question)}</p>${t.searchTerms?`<div class="label">Search terms</div><p>${esc(t.searchTerms)}</p>`:''}<div class="label">Dissertation chapters</div><p>${esc(t.chapters)}</p><div class="label">PromptCraft scenarios</div><p>${esc(t.scenarios)}</p><div class="meta">Sources found: ${esc(t.sourcesFound)}</div></article>`).join('')+'</div>':'<div class="empty">No research themes yet.</div>';
+ themes.innerHTML=state.themes.length?'<div class="plan-grid">'+state.themes.map(t=>`<article class="plan-card"><div class="card-head"><div><span class="status-pill">${esc(t.status)}</span><h3>${esc(t.theme)}</h3></div><div class="card-actions compact"><button class="ghost" onclick="editTheme('${t.id}')">Edit</button><button class="ghost danger" onclick="deleteTheme('${t.id}')">Delete</button></div></div><div class="label">Research question</div><p>${esc(t.question)}</p>${t.searchTerms?`<div class="label">Search terms</div><p>${esc(t.searchTerms)}</p>`:''}<div class="label">Paper sections</div><p>${esc(t.chapters)}</p><div class="label">PromptCraft scenarios</div><p>${esc(t.scenarios)}</p><div class="meta">Sources found: ${esc(t.sourcesFound)}</div></article>`).join('')+'</div>':'<div class="empty">No research themes yet.</div>';
  outline.innerHTML=state.outline.length?state.outline.map(o=>`<article class="plan-card"><div class="card-head"><div><span class="phase">${esc(o.chapter)}</span><h3>${esc(o.section)}</h3></div><div class="plan-card-controls"><select aria-label="Outline status" onchange="updateOutlineStatus('${o.id}',this.value)"><option ${o.status==='Not Started'?'selected':''}>Not Started</option><option ${o.status==='In Progress'?'selected':''}>In Progress</option><option ${o.status==='Drafted'?'selected':''}>Drafted</option><option ${o.status==='Complete'?'selected':''}>Complete</option></select><button class="ghost" onclick="editOutline('${o.id}')">Edit</button><button class="ghost danger" onclick="deleteOutline('${o.id}')">Delete</button></div></div><div class="label">Questions to answer</div><p>${esc(o.questions)}</p>${o.themes?`<div class="label">Themes</div><p>${esc(o.themes)}</p>`:''}</article>`).join(''):'<div class="empty">No dissertation outline items yet.</div>';
  reading.innerHTML=state.reading.length?state.reading.map(r=>`<article class="plan-card"><div class="card-head"><div><span class="phase">${esc(r.phase)}</span><h3>${esc(r.reading)}</h3><div class="meta">${esc(r.theme)}${r.target?` · Target: ${esc(r.target)}`:''}</div></div><div class="plan-card-controls"><label class="check"><input type="checkbox" ${r.done?'checked':''} onchange="updateReading('${r.id}',this.checked)"> Done</label><button class="ghost" onclick="editReading('${r.id}')">Edit</button><button class="ghost danger" onclick="deleteReading('${r.id}')">Delete</button></div></div><div class="label">Goal</div><p>${esc(r.goal)}</p></article>`).join(''):'<div class="empty">No reading schedule items yet.</div>'
 }

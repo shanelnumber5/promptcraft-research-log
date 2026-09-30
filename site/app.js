@@ -325,7 +325,7 @@ function refreshSourceEditorRelated(id){
  annsEl.innerHTML=anns.length?anns.map(a=>annotationHtml(s,a)).join(''):'<div class="annotation-empty">No notes yet. Add page-level notes, quotations, paraphrases, figures, and paper-use ideas here.</div>';
  if(primaryEl){if(primary){primaryEl.innerHTML=`<div><span class="phase">Current primary document</span><b>${esc(primary.fileName||primary.title||'Attached document')}</b><span class="small">${primary.size?fmtBytes(primary.size):''}</span></div><div class="attachment-actions">${primary.fileName?`<button type="button" class="ghost" onclick="openResearchAttachment('${primary.id}')">Open</button>`:''}<button type="button" class="ghost" onclick="editSourceAttachment('${primary.id}')">Edit document details</button></div>`;primaryEl.classList.remove('hidden')}else{primaryEl.classList.add('hidden');primaryEl.innerHTML=''}}
  if(help)help.textContent=primary?'Choose a new file only if you want to replace the current primary document.':'Optional. Choose the main PDF, Word document, or other source file.';
- queueMicrotask(loadResearchThumbs)
+ queueMicrotask(()=>hydrateResearchThumbnails(wrap))
 }
 function returnToSourceEditorOrCard(sourceId,anchorId){
  if(sourceEditorIsActive(sourceId)){refreshSourceEditorRelated(sourceId);const el=$(anchorId||'#sourceEditRelated')||$('#sourceFormPanel');el?.scrollIntoView({behavior:'smooth',block:'start'});return}

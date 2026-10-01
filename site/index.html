@@ -87,7 +87,17 @@
       </div>
       <div class="warning"><strong>Everything stays with the source.</strong> Add the article or artifact once, then attach its PDF, figures, screenshots, page notes, quotations, and paper-use ideas directly to that record.</div>
       <div id="sourceFormPanel" class="panel form-panel compact-form">
-        <h2 id="sourceFormTitle">Add research source</h2>
+        <div class="source-form-title-row">
+          <h2 id="sourceFormTitle">Add research source</h2>
+          <button type="button" class="ghost" id="citationImportOpen">Import source package</button>
+        </div>
+        <div id="citationImportPanel" class="citation-import-panel hidden">
+          <div class="source-edit-block-head"><div><h3>Import from the paper research chat</h3><p>Paste a PromptCraft source package or labeled citation record. It fills the editor for review before anything is saved.</p></div></div>
+          <label>Source package<textarea id="citationImportText" rows="10" placeholder='Paste JSON or labeled text such as Title:, Authors:, APA citation:, Key argument:, Notes:, Figures:'></textarea></label>
+          <p class="small">The importer can fill citation details, paper connection, methodology, tags, page-level notes, and figure/table metadata. Imported sources stay <b>Not Started</b> until you review them. Actual PDFs and image files are still attached with the file controls below.</p>
+          <div id="citationImportSummary" class="small hidden"></div>
+          <div class="actions"><button type="button" class="ghost" id="citationImportCancel">Cancel</button><button type="button" id="citationImportApply">Load into source editor</button></div>
+        </div>
         <form id="sourceForm">
           <input type="hidden" id="sourceId">
           <div class="grid2"><label>Research theme<select id="sourceTheme"></select></label><label>Source type<select id="sourceType"><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Research Artifact</option><option>Other</option></select></label></div>

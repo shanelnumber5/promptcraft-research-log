@@ -59,3 +59,6 @@
 .source-edit-related .source-attachment{background:#20201e}
 .source-edit-related .annotation-card{background:#20201e}
 @media(max-width:760px){.source-primary-current{align-items:flex-start;flex-direction:column}.source-edit-block-head,.source-edit-related-head{flex-direction:column}}
+
+/* Citation/source package import */
+.source-form-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}.source-form-title-row h2{margin:0}.citation-import-panel{border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:9px;padding:14px;margin:0 0 16px}.citation-import-panel h3{margin:0 0 3px;font-size:14px}.citation-import-panel p{margin:0 0 10px}.citation-import-panel textarea{min-height:180px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}@media(max-width:620px){.source-form-title-row{align-items:stretch;flex-direction:column}.source-form-title-row button{width:100%}}

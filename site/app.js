@@ -33,6 +33,7 @@ const ANNOTATION_TYPES=['Key finding','Direct quote','Paraphrase','Definition','
 const RESEARCH_PLAN_VERSION=2;
 let editingLogImages=[];
 let pendingLogImages=[];
+let pendingImportedAnnotations=[];
 const imageUrlCache=new Map();
 
 function normalizeSeed(seed){if(!seed||!Array.isArray(seed.logs))throw new Error('PromptCraft base data failed to load. Check that seed-data.js is deployed beside app.js.');const x=clone(seed); x.logs=x.logs.map((e,i)=>({...e,id:e.id||'seed-log-'+i,phase:LEGACY_PHASE[e.phase]||e.phase,date:isoDate(e.date)})); x.sources=x.sources.map((s,i)=>({...s,id:s.id||'seed-source-'+i})); x.themes=(x.themes||[]).map((e,i)=>({...e,id:e.id||'seed-theme-'+i})); x.outline=(x.outline||[]).map((e,i)=>({...e,id:e.id||'seed-outline-'+i})); x.reading=(x.reading||[]).map((e,i)=>({...e,id:e.id||'seed-reading-'+i})); x.backups=x.backups||[]; x.paperBackups=x.paperBackups||[]; x.researchMaterials=(x.researchMaterials||[]).map((m,i)=>({...m,id:m.id||'seed-material-'+i,annotations:m.annotations||[]})); return x}
@@ -331,7 +332,107 @@ function returnToSourceEditorOrCard(sourceId,anchorId){
  if(sourceEditorIsActive(sourceId)){refreshSourceEditorRelated(sourceId);const el=$(anchorId||'#sourceEditRelated')||$('#sourceFormPanel');el?.scrollIntoView({behavior:'smooth',block:'start'});return}
  requestAnimationFrame(()=>returnToResearchSource(sourceId))
 }
-function clearSource(){for(const id of ['sourceId','sourceTitle','sourceAuthors','sourceDate','sourcePublisher','sourceApa','sourceArgument','sourceConnection','sourceMethod','sourcePaperSection','sourceUrl','sourceTags','sourceArchive']){const el=$('#'+id);if(el)el.value=''}if($('#sourceTheme'))$('#sourceTheme').value='';$('#sourcePriority').value='High';$('#sourceStatus').value='Not Started';$('#sourceType').value='Article / PDF';$('#sourceFile').value='';$('#sourceFormTitle').textContent='Add research source';refreshSourceEditorRelated('')}
+function citationImportString(v){
+ if(v===undefined||v===null)return'';
+ if(Array.isArray(v))return v.join(', ');
+ if(typeof v==='object')return JSON.stringify(v);
+ return String(v).trim()
+}
+function citationImportArray(v){
+ if(Array.isArray(v))return v.map(x=>citationImportString(x)).filter(Boolean);
+ if(!v)return[];
+ return String(v).split(/[,;]\s*/).map(x=>x.trim()).filter(Boolean)
+}
+function citationImportValue(obj,keys,def=''){
+ for(const k of keys)if(obj&&obj[k]!==undefined&&obj[k]!==null&&obj[k]!=='')return obj[k];
+ return def
+}
+function stripCitationCodeFence(raw){
+ let x=String(raw||'').trim();
+ const m=x.match(/^```(?:json|javascript|js|text|markdown)?\s*([\s\S]*?)\s*```$/i);
+ return m?m[1].trim():x
+}
+function parseLabeledCitationImport(raw){
+ const known={
+  'research theme':'theme','theme':'theme','folder':'theme','priority':'priority','source type':'sourceType','type':'sourceType',
+  'article name':'title','article title':'title','source name':'title','source title':'title','title':'title',
+  'authors':'authors','author':'authors','creator':'authors','creators':'authors','date':'date','year':'date','publication date':'date',
+  'journal':'publisher','publisher':'publisher','journal / publisher':'publisher','publication':'publisher',
+  'apa citation':'apa','apa 7 citation':'apa','apa 7':'apa','citation':'apa','reference':'apa',
+  'key argument':'keyArgument','key finding':'keyArgument','useful finding':'keyArgument','key argument / useful finding':'keyArgument',
+  'promptcraft connection':'connection','connection to promptcraft':'connection','relevance to promptcraft':'connection',
+  'methodology':'methodology','method':'methodology','methods':'methodology',
+  'paper section':'paperSection','likely paper section':'paperSection','paper use':'paperSection',
+  'source url':'url','original source url':'url','url':'url','doi':'url','link':'url','tags':'tags','archive filename':'archiveFile','archive file':'archiveFile',
+  'notes':'notes','notes / quotes':'notes','annotations':'notes','figures':'figures','figures / tables':'figures','figures/tables':'figures','visuals':'figures'
+ };
+ const obj={},lines=String(raw||'').replace(/\r/g,'').split('\n');let active='';
+ for(const line of lines){
+  const m=line.match(/^\s*(?:[-*]\s*)?([^:]{2,45}):\s*(.*)$/);
+  if(m){const key=known[m[1].trim().toLowerCase()];if(key){active=key;obj[key]=(obj[key]?obj[key]+'\n':'')+m[2].trim();continue}}
+  if(active&&line.trim())obj[active]+='\n'+line.trim()
+ }
+ if(!Object.keys(obj).length)throw new Error('Could not recognize the source package. Paste JSON or labeled fields such as Title:, Authors:, APA citation:, Key argument:, and Notes:.');
+ if(obj.tags)obj.tags=citationImportArray(obj.tags);
+ if(obj.notes)obj.notes=[{text:obj.notes,type:'Other'}];
+ if(obj.figures)obj.figures=[{title:obj.figures,type:'Figure / diagram'}];
+ return obj
+}
+function normalizeImportedAnnotation(a,defaultType='Other'){
+ if(typeof a==='string')a={text:a};
+ a=a||{};
+ const location=citationImportString(citationImportValue(a,['location','page','pages','pageNumber','figureNumber','tableNumber']));
+ const text=citationImportString(citationImportValue(a,['text','note','quote','paraphrase','finding','title','caption','description']));
+ const interpretation=citationImportString(citationImportValue(a,['interpretation','relevance','whyItMatters','why','promptcraftConnection']));
+ const paperUse=citationImportString(citationImportValue(a,['paperUse','use','intendedUse','paperSection','section']));
+ const rawType=citationImportString(citationImportValue(a,['type','annotationType'],defaultType));
+ let type=ANNOTATION_TYPES.includes(rawType)?rawType:defaultType;
+ if(/table/i.test(rawType))type='Table / data';else if(/figure|diagram|visual|image/i.test(rawType))type='Figure / diagram';
+ const extras=[];
+ const attribution=citationImportString(citationImportValue(a,['attribution','credit','sourceAttribution']));if(attribution)extras.push(`Attribution: ${attribution}`);
+ const archive=citationImportString(citationImportValue(a,['archiveFile','archiveFilename','fileName']));if(archive)extras.push(`Archive file: ${archive}`);
+ return {id:uuid(),location,type,text:text||citationImportString(citationImportValue(a,['name'],'Imported research note')),interpretation:[interpretation,...extras].filter(Boolean).join('\n'),paperUse,tags:citationImportArray(citationImportValue(a,['tags'],[])),created:new Date().toISOString(),updatedAt:new Date().toISOString()}
+}
+function parseCitationImport(raw){
+ const clean=stripCitationCodeFence(raw);let data;
+ try{data=JSON.parse(clean)}catch{data=parseLabeledCitationImport(clean)}
+ if(Array.isArray(data)){if(data.length!==1)throw new Error('Paste one source package at a time.');data=data[0]}
+ if(data?.source&&typeof data.source==='object')data={...data.source,notes:data.notes||data.annotations||data.source.notes||data.source.annotations,figures:data.figures||data.visuals||data.tables||data.source.figures||data.source.visuals||data.source.tables};
+ if(!data||typeof data!=='object')throw new Error('The citation package does not contain a source record.');
+ const rawUrl=citationImportString(citationImportValue(data,['url','sourceUrl','link','doi']));
+ const url=rawUrl&&/^10\.\d{4,9}\//.test(rawUrl)?`https://doi.org/${rawUrl}`:rawUrl;
+ const imported={
+  theme:citationImportString(citationImportValue(data,['theme','researchTheme','folder'])),priority:citationImportString(citationImportValue(data,['priority'],'High')),
+  sourceType:citationImportString(citationImportValue(data,['sourceType','type'],'Article / PDF')),title:citationImportString(citationImportValue(data,['title','articleTitle','sourceTitle','articleName'])),
+  authors:citationImportString(citationImportValue(data,['authors','author','creators','creator'])),date:citationImportString(citationImportValue(data,['date','year','publicationDate'])),
+  publisher:citationImportString(citationImportValue(data,['publisher','journal','publication','journalPublisher'])),apa:citationImportString(citationImportValue(data,['apa','apa7','citation','reference'])),
+  keyArgument:citationImportString(citationImportValue(data,['keyArgument','keyFinding','argument','usefulFinding'])),connection:citationImportString(citationImportValue(data,['connection','promptcraftConnection','relevance','relevanceToPromptCraft'])),
+  methodology:citationImportString(citationImportValue(data,['methodology','method','methods'])),paperSection:citationImportString(citationImportValue(data,['paperSection','likelyPaperSection','paperUse'])),
+  url,tags:citationImportArray(citationImportValue(data,['tags','keywords'],[])),archiveFile:citationImportString(citationImportValue(data,['archiveFile','archiveFilename','fileName']))
+ };
+ const access=citationImportString(citationImportValue(data,['access','accessStatus','fullText','fullTextStatus']));if(access&&!imported.tags.some(t=>t.toLowerCase()===access.toLowerCase()))imported.tags.push(access);
+ const notes=citationImportValue(data,['annotations','notes','notesQuotes'],[]),figures=citationImportValue(data,['figures','visuals','tables','diagrams'],[]);
+ const anns=[];
+ const addMany=(v,type)=>{if(!v)return;const arr=Array.isArray(v)?v:[v];for(const a of arr)if(a!==''&&a!==null&&a!==undefined)anns.push(normalizeImportedAnnotation(a,type))};
+ addMany(notes,'Other');addMany(figures,'Figure / diagram');
+ if(!imported.title&&!imported.apa)throw new Error('The source package needs at least a title or APA citation.');
+ return {source:imported,annotations:anns}
+}
+function hideCitationImport(){const p=$('#citationImportPanel');if(p)p.classList.add('hidden');if($('#citationImportSummary')){$('#citationImportSummary').classList.add('hidden');$('#citationImportSummary').textContent=''}if($('#citationImportText'))$('#citationImportText').value=''}
+function showCitationImport(){const p=$('#citationImportPanel');if(!p)return;p.classList.remove('hidden');$('#citationImportText')?.focus();p.scrollIntoView({behavior:'smooth',block:'nearest'})}
+function loadCitationImportIntoEditor(){
+ try{
+  const {source,annotations}=parseCitationImport($('#citationImportText').value);
+  refreshSourceOptions();
+  const map=[['sourceTheme','theme'],['sourceType','sourceType'],['sourcePriority','priority'],['sourceTitle','title'],['sourceAuthors','authors'],['sourceDate','date'],['sourcePublisher','publisher'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url'],['sourceArchive','archiveFile']];
+  for(const [id,key] of map){const el=$('#'+id);if(!el)continue;const val=source[key]||'';if(id==='sourceTheme'&&val&&!SOURCE_FOLDERS.includes(val)){el.value=''}else if(id==='sourceType'&&val&&![...el.options].some(o=>o.value===val)){el.value='Other'}else if(id==='sourcePriority'&&!['High','Medium','Low'].includes(val)){el.value='High'}else el.value=val}
+  $('#sourceStatus').value='Not Started';$('#sourceTags').value=(source.tags||[]).join(', ');
+  pendingImportedAnnotations=annotations;
+  const summary=$('#citationImportSummary');if(summary){summary.textContent=`Loaded source details${annotations.length?` and ${annotations.length} page/figure note${annotations.length===1?'':'s'}`:''}. Review the fields, attach the full-text document/images, then save.`;summary.classList.remove('hidden')}
+  $('#sourceFormPanel').scrollIntoView({behavior:'smooth',block:'start'});toast('Source package loaded for review')
+ }catch(e){toast(e.message||'Could not import citation package')}
+}
+function clearSource(){pendingImportedAnnotations=[];hideCitationImport();for(const id of ['sourceId','sourceTitle','sourceAuthors','sourceDate','sourcePublisher','sourceApa','sourceArgument','sourceConnection','sourceMethod','sourcePaperSection','sourceUrl','sourceTags','sourceArchive']){const el=$('#'+id);if(el)el.value=''}if($('#sourceTheme'))$('#sourceTheme').value='';$('#sourcePriority').value='High';$('#sourceStatus').value='Not Started';$('#sourceType').value='Article / PDF';$('#sourceFile').value='';$('#sourceFormTitle').textContent='Add research source';refreshSourceEditorRelated('')}
 function returnToResearchSource(id){
  const card=document.getElementById(`source-card-${id}`);
  if(!card)return;
@@ -341,7 +442,7 @@ function returnToResearchSource(id){
  setTimeout(()=>card.classList.remove('source-card-return'),1400);
 }
 
-window.editSource=id=>{const s=state.sources.find(x=>x.id===id);if(!s)return;refreshSourceOptions();for(const [fid,key] of [['sourceId','id'],['sourceTitle','title'],['sourceAuthors','authors'],['sourceDate','date'],['sourcePublisher','publisher'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url'],['sourceArchive','archiveFile'],['sourceTheme','theme'],['sourcePriority','priority'],['sourceStatus','status'],['sourceType','sourceType']]){const el=$('#'+fid);if(el)el.value=s[key]||''}$('#sourceTags').value=(s.tags||[]).join(', ');$('#sourceFile').value='';$('#sourceFormTitle').textContent='Edit research source';refreshSourceEditorRelated(id);$('#sourceFormPanel').scrollIntoView({behavior:'smooth',block:'start'})}
+window.editSource=id=>{const s=state.sources.find(x=>x.id===id);if(!s)return;pendingImportedAnnotations=[];hideCitationImport();refreshSourceOptions();for(const [fid,key] of [['sourceId','id'],['sourceTitle','title'],['sourceAuthors','authors'],['sourceDate','date'],['sourcePublisher','publisher'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url'],['sourceArchive','archiveFile'],['sourceTheme','theme'],['sourcePriority','priority'],['sourceStatus','status'],['sourceType','sourceType']]){const el=$('#'+fid);if(el)el.value=s[key]||''}$('#sourceTags').value=(s.tags||[]).join(', ');$('#sourceFile').value='';$('#sourceFormTitle').textContent='Edit research source';refreshSourceEditorRelated(id);$('#sourceFormPanel').scrollIntoView({behavior:'smooth',block:'start'})}
 window.deleteSource=async id=>{const item=state.sources.find(x=>x.id===id);if(!item||!confirm(`Delete “${item.title}” and all files and notes attached to it?`))return;try{for(const m of sourceAttachments(id)){await deleteResearchAttachmentFile(m);addTombstone('researchMaterials',m)}state.researchMaterials=(state.researchMaterials||[]).filter(m=>m.sourceId!==id);addTombstone('sources',item);state.sources=state.sources.filter(x=>x.id!==id);await persist();renderSources();toast('Research source deleted')}catch(e){toast(e.message)}}
 function clearSourceAnnotation(){for(const id of ['sourceAnnotationSourceId','sourceAnnotationId','annotationLocation','annotationText','annotationInterpretation','annotationPaperUse','annotationTags']){const el=$('#'+id);if(el)el.value=''}if($('#annotationType'))$('#annotationType').value=ANNOTATION_TYPES[0];$('#sourceAnnotationEditor')?.classList.add('hidden')}
 window.addSourceAnnotation=id=>{const s=state.sources.find(x=>x.id===id);if(!s)return;clearSourceAnnotation();$('#sourceAnnotationSourceId').value=id;$('#annotationFormTitle').textContent=`Add note · ${s.title}`;$('#sourceAnnotationEditor').classList.remove('hidden');$('#sourceAnnotationEditor').scrollIntoView({behavior:'smooth',block:'start'})}
@@ -524,9 +625,10 @@ $$('.tab').forEach(b=>b.onclick=()=>{$$('.tab').forEach(x=>x.classList.toggle('a
 $$('.subtab').forEach(b=>b.onclick=()=>{$$('.subtab').forEach(x=>x.classList.toggle('active',x===b));$$('.plan-view').forEach(v=>v.classList.toggle('active',v.id==='plan-'+b.dataset.plan))});
 $('#connectBtn').onclick=()=>{$('#cloudPanel').classList.toggle('hidden');$('#adminKey').value=adminKey;$('#rememberKey').checked=!!localStorage.getItem(ADMIN_KEY_STORAGE)};$('#syncBtn').onclick=()=>syncCloud();$('#cloudDisconnect').onclick=disconnectCloud;$('#cloudCancel').onclick=()=>$('#cloudPanel').classList.add('hidden');$('#cloudConnectConfirm').onclick=connectCloud;
 $('#logSearch').oninput=renderLogs;$('#logFilter').onchange=renderLogs;$('#sourceSearch').oninput=renderSources;$('#sourceThemeFilter').onchange=renderSources;$('#sourceStatusFilter').onchange=renderSources;$('#sourceTypeFilter').onchange=renderSources;
+if($('#citationImportOpen'))$('#citationImportOpen').onclick=showCitationImport;if($('#citationImportCancel'))$('#citationImportCancel').onclick=hideCitationImport;if($('#citationImportApply'))$('#citationImportApply').onclick=loadCitationImportIntoEditor;
 $('#logClear').onclick=clearLog;$('#sourceClear').onclick=clearSource;$('#annotationCancel').onclick=clearSourceAnnotation;$('#attachmentCancel').onclick=clearSourceAttachment;$('#sourceEditAddFile').onclick=()=>{const id=sourceEditorId();if(id)addSourceAttachment(id)};$('#sourceEditAddNote').onclick=()=>{const id=sourceEditorId();if(id)addSourceAnnotation(id)};$('#exportLogBtn').onclick=exportLog;$('#restoreLogBtn').onclick=restoreBaseLogs;$('#exportAllBtn').onclick=exportAll;
 $('#logForm').onsubmit=async e=>{e.preventDefault();const id=$('#logId').value||uuid(),original=state.logs.find(x=>x.id===id),originalImages=clone(original?.images||[]);if(pendingLogImages.length&&!adminKey)return toast('Connect cloud storage before saving new development images.');try{const keptIds=new Set(editingLogImages.map(x=>x.id));for(const oldImg of originalImages)if(!keptIds.has(oldImg.id))await deleteDevelopmentImageBlob(oldImg);const uploaded=[];for(const item of pendingLogImages)uploaded.push(await uploadDevelopmentImage(item));const images=[...editingLogImages,...uploaded];const obj={id,date:$('#logDate').value,phase:$('#logPhase').value,title:$('#logTitle').value.trim(),what:$('#logWhat').value.trim(),why:$('#logWhy').value.trim(),tags:$('#logTags').value.split(',').map(x=>x.trim()).filter(Boolean),images,updatedAt:new Date().toISOString()};const i=state.logs.findIndex(x=>x.id===id);if(i>=0)state.logs[i]=obj;else state.logs.push(obj);await persist();clearLog();renderLogs();renderVisualHistory();toast(images.length?'Development entry and images saved':'Development entry saved')}catch(err){console.error(err);toast(err.message||'Could not save development entry')}};
-$('#sourceForm').onsubmit=async e=>{e.preventDefault();const id=$('#sourceId').value||uuid(),existing=state.sources.find(x=>x.id===id),file=$('#sourceFile').files[0];const obj={...(existing||{}),id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,sourceType:$('#sourceType').value,title:$('#sourceTitle').value.trim(),authors:$('#sourceAuthors').value.trim(),date:$('#sourceDate').value.trim(),publisher:$('#sourcePublisher').value.trim(),apa:$('#sourceApa').value.trim(),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,paperSection:$('#sourcePaperSection').value.trim(),url:$('#sourceUrl').value.trim(),tags:$('#sourceTags').value.split(',').map(x=>x.trim()).filter(Boolean),archiveFile:$('#sourceArchive').value.trim(),annotations:existing?.annotations||[],created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};const i=state.sources.findIndex(x=>x.id===id);if(i>=0)state.sources[i]=obj;else state.sources.push(obj);const currentPrimary=(state.researchMaterials||[]).find(m=>m.sourceId===id&&m.role==='primary');if(currentPrimary){currentPrimary.title=obj.title||currentPrimary.fileName||'Primary source document';currentPrimary.materialType=obj.sourceType;currentPrimary.updatedAt=new Date().toISOString()}try{if(file){if(cloud&&!adminKey)throw new Error('Connect with the cloud admin key before uploading research files.');const old=(state.researchMaterials||[]).find(m=>m.sourceId===id&&m.role==='primary');if(old)await deleteResearchAttachmentFile(old);const fileId=uuid(),sha256=await hashFile(file),location=await storeBackupFile(fileId,file,'sourceFileProgress'),att={id:old?.id||uuid(),sourceId:id,role:'primary',materialType:obj.sourceType,title:obj.title||file.name||'Primary source document',location:'',notes:'',fileId,fileName:file.name,size:file.size,type:file.type||'application/octet-stream',sha256,...location,created:old?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};if(old)state.researchMaterials[state.researchMaterials.findIndex(m=>m.id===old.id)]=att;else state.researchMaterials.push(att)}await persist();hideProgress('sourceFileProgress');clearSource();renderSources();requestAnimationFrame(()=>returnToResearchSource(id));toast('Research source saved')}catch(err){hideProgress('sourceFileProgress');toast(err.message);console.error(err)}};
+$('#sourceForm').onsubmit=async e=>{e.preventDefault();const id=$('#sourceId').value||uuid(),existing=state.sources.find(x=>x.id===id),file=$('#sourceFile').files[0];const obj={...(existing||{}),id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,sourceType:$('#sourceType').value,title:$('#sourceTitle').value.trim(),authors:$('#sourceAuthors').value.trim(),date:$('#sourceDate').value.trim(),publisher:$('#sourcePublisher').value.trim(),apa:$('#sourceApa').value.trim(),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,paperSection:$('#sourcePaperSection').value.trim(),url:$('#sourceUrl').value.trim(),tags:$('#sourceTags').value.split(',').map(x=>x.trim()).filter(Boolean),archiveFile:$('#sourceArchive').value.trim(),annotations:[...(existing?.annotations||[]),...pendingImportedAnnotations.filter(a=>!(existing?.annotations||[]).some(x=>`${x.location||''}|${x.text||''}`===`${a.location||''}|${a.text||''}`))],created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};const i=state.sources.findIndex(x=>x.id===id);if(i>=0)state.sources[i]=obj;else state.sources.push(obj);const currentPrimary=(state.researchMaterials||[]).find(m=>m.sourceId===id&&m.role==='primary');if(currentPrimary){currentPrimary.title=obj.title||currentPrimary.fileName||'Primary source document';currentPrimary.materialType=obj.sourceType;currentPrimary.updatedAt=new Date().toISOString()}try{if(file){if(cloud&&!adminKey)throw new Error('Connect with the cloud admin key before uploading research files.');const old=(state.researchMaterials||[]).find(m=>m.sourceId===id&&m.role==='primary');if(old)await deleteResearchAttachmentFile(old);const fileId=uuid(),sha256=await hashFile(file),location=await storeBackupFile(fileId,file,'sourceFileProgress'),att={id:old?.id||uuid(),sourceId:id,role:'primary',materialType:obj.sourceType,title:obj.title||file.name||'Primary source document',location:'',notes:'',fileId,fileName:file.name,size:file.size,type:file.type||'application/octet-stream',sha256,...location,created:old?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};if(old)state.researchMaterials[state.researchMaterials.findIndex(m=>m.id===old.id)]=att;else state.researchMaterials.push(att)}await persist();hideProgress('sourceFileProgress');clearSource();renderSources();requestAnimationFrame(()=>returnToResearchSource(id));toast('Research source saved')}catch(err){hideProgress('sourceFileProgress');toast(err.message);console.error(err)}};
 
 $('#sourceAnnotationForm').onsubmit=async e=>{e.preventDefault();const sourceId=$('#sourceAnnotationSourceId').value,s=state.sources.find(x=>x.id===sourceId);if(!s)return toast('Research source not found.');const id=$('#sourceAnnotationId').value||uuid(),old=(s.annotations||[]).find(x=>x.id===id),a={id,location:$('#annotationLocation').value.trim(),type:$('#annotationType').value,text:$('#annotationText').value.trim(),interpretation:$('#annotationInterpretation').value.trim(),paperUse:$('#annotationPaperUse').value.trim(),tags:$('#annotationTags').value.split(',').map(x=>x.trim()).filter(Boolean),created:old?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};s.annotations=s.annotations||[];const i=s.annotations.findIndex(x=>x.id===id);if(i>=0)s.annotations[i]=a;else s.annotations.push(a);s.updatedAt=new Date().toISOString();await persist();clearSourceAnnotation();renderSources();returnToSourceEditorOrCard(sourceId,'#sourceEditAnnotations');toast('Research note saved')};
 $('#sourceAttachmentForm').onsubmit=async e=>{e.preventDefault();const sourceId=$('#attachmentSourceId').value,source=state.sources.find(x=>x.id===sourceId),id=$('#attachmentId').value||uuid(),existing=(state.researchMaterials||[]).find(x=>x.id===id),file=$('#attachmentFile').files[0];if(!source)return toast('Research source not found.');if(!existing&&!file)return toast('Choose a file to attach.');try{let stored=existing?{fileId:existing.fileId,fileName:existing.fileName,size:existing.size,type:existing.type,sha256:existing.sha256,storage:existing.storage,chunkCount:existing.chunkCount,staticPath:existing.staticPath}:{};if(file){if(cloud&&!adminKey)throw new Error('Connect with the cloud admin key before uploading research files.');if(existing)await deleteResearchAttachmentFile(existing);const fileId=uuid(),sha256=await hashFile(file),location=await storeBackupFile(fileId,file,'attachmentProgress');stored={fileId,fileName:file.name,size:file.size,type:file.type||'application/octet-stream',sha256,...location,staticPath:''}}const obj={id,sourceId,role:existing?.role||'supporting',materialType:$('#attachmentType').value,title:$('#attachmentTitle').value.trim()||stored.fileName||'Attached file',location:$('#attachmentLocation').value.trim(),notes:$('#attachmentNotes').value.trim(),created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString(),...stored};const i=state.researchMaterials.findIndex(x=>x.id===id);if(i>=0)state.researchMaterials[i]=obj;else state.researchMaterials.push(obj);await persist();hideProgress('attachmentProgress');clearSourceAttachment();renderSources();returnToSourceEditorOrCard(sourceId,'#sourceEditAttachments');toast('Research file saved')}catch(err){hideProgress('attachmentProgress');toast(err.message);console.error(err)}};

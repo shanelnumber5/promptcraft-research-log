@@ -90,3 +90,21 @@
 
 /* Citation copy controls */
 .citation-copy-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:-5px 0 14px}.citation-copy-actions button{font-size:11px;padding:6px 9px}.editor-citation-actions{justify-content:flex-start;margin-top:-5px;margin-bottom:14px}.source-card .citation-copy-actions{margin-top:-5px}@media(max-width:620px){.citation-copy-actions button{flex:1 1 auto}}
+
+
+/* Simplified research source entry + paper-use evidence layout */
+.source-optional-details{margin:14px 0 16px;border:1px solid var(--line);border-radius:10px;background:#1b1b1a;overflow:hidden}
+.source-optional-details summary{cursor:pointer;padding:12px 14px;font-weight:800;color:#d7d7d1;list-style:none}
+.source-optional-details summary::-webkit-details-marker{display:none}
+.source-optional-details summary:after{content:"▾";float:right;color:var(--muted)}
+.source-optional-details[open] summary:after{content:"▴"}
+.source-optional-details summary span{font-weight:500;color:var(--muted);font-size:12px;margin-left:6px}
+.source-optional-details>p,.source-optional-details>.grid2,.source-optional-details>label{margin-left:14px;margin-right:14px}
+.source-optional-details>label:last-child{margin-bottom:14px}
+#paperUseAnnotations{display:grid;gap:8px;margin-top:10px}
+.paper-use-check{display:grid;grid-template-columns:22px minmax(0,1fr);align-items:start;gap:10px;width:100%;margin:0;padding:10px 11px;border:1px solid #3b3b36;border-radius:8px;background:#1b1b1a;cursor:pointer}
+.paper-use-check:last-child{border-bottom:1px solid #3b3b36}
+.paper-use-check input{width:auto!important;min-width:16px;height:16px;margin:3px 0 0!important;padding:0;justify-self:start}
+.paper-use-check span{display:block;min-width:0;font-weight:400;line-height:1.45;overflow-wrap:anywhere}
+.paper-use-check:hover{border-color:#565650;background:#20201e}
+@media(max-width:760px){.source-optional-details>.grid2{grid-template-columns:1fr}}

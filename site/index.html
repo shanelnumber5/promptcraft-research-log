@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#171716">
   <title>PromptCraft Research & Development Hub</title>
-  <link rel="stylesheet" href="style.css?v=20260929-researchmaterials1">
+  <link rel="stylesheet" href="style.css?v=20261001-paperuse1">
 </head>
 <body>
   <header class="topbar">
@@ -112,6 +112,11 @@
           <div class="grid2"><label>Author(s) / creator / organization<input id="sourceAuthors"></label><label>Date / year<input id="sourceDate" placeholder="2025 or 2025-08-12"></label></div>
           <label>Journal / publisher<input id="sourcePublisher"></label>
           <label>APA citation / reference<textarea id="sourceApa" rows="2"></textarea></label>
+          <div class="citation-copy-actions editor-citation-actions" aria-label="Copy citation options">
+            <button type="button" class="ghost" onclick="copyEditorInText()">Copy in-text citation</button>
+            <button type="button" class="ghost" onclick="copyEditorNarrative()">Copy narrative citation</button>
+            <button type="button" class="ghost" onclick="copyEditorApa()">Copy APA reference</button>
+          </div>
           <label>Key argument / useful finding<textarea id="sourceArgument" rows="3"></textarea></label>
           <label>Connection to PromptCraft<textarea id="sourceConnection" rows="3"></textarea></label>
           <div class="grid2"><label>Methodology<textarea id="sourceMethod" rows="2"></textarea></label><label>Likely paper section<input id="sourcePaperSection" list="sourcePaperSectionOptions" placeholder="e.g. Chapter 2 · Professional Judgment"><datalist id="sourcePaperSectionOptions"></datalist></label></div>
@@ -157,6 +162,28 @@
           <div class="actions"><button id="annotationCancel" type="button" class="ghost">Cancel</button><button type="submit">Save note</button></div>
         </form>
       </div>
+
+
+      <div id="paperUseEditor" class="panel form-panel hidden paper-use-editor">
+        <h2 id="paperUseEditorTitle">Use source in paper</h2>
+        <form id="paperUseForm">
+          <input id="paperUseId" type="hidden"><input id="paperUseSourceId" type="hidden">
+          <div class="paper-use-source-block">
+            <div class="small">Source</div>
+            <strong id="paperUseSourceLabel"></strong>
+            <div id="paperUseCitation" class="citation paper-use-editor-citation"></div>
+          </div>
+          <div class="grid2"><label>Paper section<select id="paperUseSection" required></select></label><label>Status<select id="paperUseStatus"><option>Planned</option><option>Drafted</option><option>Used</option></select></label></div>
+          <label>Point I want to make<textarea id="paperUsePoint" rows="3" required placeholder="What claim, comparison, explanation, or design point will this source support?"></textarea></label>
+          <fieldset class="paper-use-annotation-fieldset"><legend>Evidence to use</legend><p class="small">Select the page-level notes or annotations that support this point.</p><div id="paperUseAnnotations"></div></fieldset>
+          <div class="actions"><button id="paperUseCancel" type="button" class="ghost">Cancel</button><button type="submit">Save paper-use card</button></div>
+        </form>
+      </div>
+
+      <section class="paper-use-section">
+        <div class="paper-use-section-head"><div><h2>Paper Use</h2><p>Evidence you have deliberately connected to the manuscript. Track it from planned to drafted to used.</p></div><span id="paperUseCount" class="status-pill">0 active</span></div>
+        <div id="paperUseList" class="paper-use-list"></div>
+      </section>
 
       <div class="filters source-filters"><input id="sourceSearch" placeholder="Search sources, files, notes, pages, and tags…"><select id="sourceThemeFilter"></select><select id="sourceTypeFilter"><option value="">All source types</option><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Research Artifact</option><option>Other</option></select><select id="sourceStatusFilter"><option value="">All statuses</option><option>Not Started</option><option>In Progress</option><option>Read</option><option>Cited</option></select></div>
       <div id="sourceList" class="cards"></div>
@@ -253,6 +280,6 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="seed-data.js?v=20260818-cloudsync1"></script>
-  <script src="app.js?v=20260929-unifiedlibrary1"></script>
+  <script src="app.js?v=20261001-paperuse1"></script>
 </body>
 </html>

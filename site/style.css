@@ -62,3 +62,31 @@
 
 /* Citation/source package import */
 .source-form-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}.source-form-title-row h2{margin:0}.citation-import-panel{border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:9px;padding:14px;margin:0 0 16px}.citation-import-panel h3{margin:0 0 3px;font-size:14px}.citation-import-panel p{margin:0 0 10px}.citation-import-panel textarea{min-height:180px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}@media(max-width:620px){.source-form-title-row{align-items:stretch;flex-direction:column}.source-form-title-row button{width:100%}}
+
+/* Paper-use bridge: source evidence -> manuscript */
+.paper-use-section{margin:22px 0 26px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.paper-use-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+.paper-use-section-head h2{margin:0 0 4px}
+.paper-use-section-head p{margin:0;color:var(--muted)}
+.paper-use-list{display:grid;gap:12px}
+.paper-use-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#20201e}
+.paper-use-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.paper-use-head h3{margin:5px 0 3px;font-size:1.02rem}
+.paper-use-head select{min-width:120px}
+.paper-use-citation{margin:10px 0}
+.paper-use-evidence{display:grid;gap:8px;margin-top:10px}
+.paper-use-evidence-item{padding:10px;border-left:3px solid var(--warn);background:rgba(255,255,255,.035);border-radius:6px}
+.paper-use-evidence-item .small{margin-top:6px}
+.paper-use-editor{scroll-margin-top:18px}
+.paper-use-source-block{padding:12px;border:1px solid var(--line);border-radius:10px;margin-bottom:12px;background:rgba(255,255,255,.025)}
+.paper-use-editor-citation{margin-top:8px}
+.paper-use-annotation-fieldset{border:1px solid var(--line);border-radius:10px;padding:12px;margin:12px 0}
+.paper-use-annotation-fieldset legend{font-weight:700;padding:0 6px}
+.paper-use-check{display:flex;align-items:flex-start;gap:10px;padding:9px 6px;border-bottom:1px solid var(--border);cursor:pointer}
+.paper-use-check:last-child{border-bottom:0}
+.paper-use-check input{margin-top:4px;flex:0 0 auto}
+.paper-use-check span{font-weight:400;line-height:1.4}
+@media(max-width:700px){.paper-use-section-head,.paper-use-head{flex-direction:column}.paper-use-head select{width:100%}}
+
+/* Citation copy controls */
+.citation-copy-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:-5px 0 14px}.citation-copy-actions button{font-size:11px;padding:6px 9px}.editor-citation-actions{justify-content:flex-start;margin-top:-5px;margin-bottom:14px}.source-card .citation-copy-actions{margin-top:-5px}@media(max-width:620px){.citation-copy-actions button{flex:1 1 auto}}

@@ -86,6 +86,16 @@
         <div class="stats"><div><b id="sourceCount">0</b><span>sources</span></div><div><b id="readCount">0</b><span>read/cited</span></div></div>
       </div>
       <div class="warning"><strong>Everything stays with the source.</strong> Add the article or artifact once, then attach its PDF, figures, screenshots, page notes, quotations, and paper-use ideas directly to that record.</div>
+      <nav class="source-library-toolbar" aria-label="Research source navigation">
+        <div class="source-library-tabs" role="tablist" aria-label="Research source views">
+          <button type="button" class="research-source-tab active" data-source-view="all" role="tab" aria-selected="true">All Sources <span id="allSourcesTabCount">0</span></button>
+          <button type="button" class="research-source-tab" data-source-view="used" role="tab" aria-selected="false">Used in Paper <span id="usedSourcesTabCount">0</span></button>
+        </div>
+        <div class="source-library-quick">
+          <label class="source-jump-label">Jump to source<select id="sourceJump"><option value="">Choose a source…</option></select></label>
+          <button type="button" class="ghost" id="sourceAddQuick">Add source</button>
+        </div>
+      </nav>
       <div id="sourceFormPanel" class="panel form-panel compact-form">
         <div class="source-form-title-row">
           <h2 id="sourceFormTitle">Add research source</h2>
@@ -185,7 +195,7 @@
         </form>
       </div>
 
-      <section class="paper-use-section">
+      <section id="paperUseOverview" class="paper-use-section source-view-used-only">
         <div class="paper-use-section-head"><div><h2>Paper Use</h2><p>Evidence you have deliberately connected to the manuscript. Track it from planned to drafted to used.</p></div><span id="paperUseCount" class="status-pill">0 active</span></div>
         <div id="paperUseList" class="paper-use-list"></div>
       </section>

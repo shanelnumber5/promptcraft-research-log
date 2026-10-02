@@ -134,3 +134,13 @@
 .used-source-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
 .used-source-actions button,.used-source-actions .button-link{margin:0;white-space:nowrap}
 @media(max-width:820px){.used-source-row{align-items:flex-start;flex-direction:column}.used-source-actions{justify-content:flex-start;width:100%}}
+
+
+/* 2026-10-02 source save/connection feedback */
+button:disabled{opacity:.58;cursor:wait;filter:none!important}
+button:active:not(:disabled){transform:translateY(1px)}
+.source-save-actions{align-items:center;flex-wrap:wrap}
+.source-save-status{margin-right:auto;font-size:12px;color:#c7d7c8;padding:7px 0}
+#sourceSaveBtn[aria-busy="true"]{min-width:118px}
+.attention-pulse{animation:pcAttentionPulse .65s ease-out}
+@keyframes pcAttentionPulse{0%{box-shadow:0 0 0 0 rgba(107,168,248,.45)}100%{box-shadow:0 0 0 10px rgba(107,168,248,0)}}

@@ -174,7 +174,12 @@ function mergeDeleted(a,b){
  return out
 }
 function recordModifiedAt(item){return item?.updatedAt||item?.created||''}
-function tombstoneMatches(type,item,t){return !!((t.id&&t.id===item.id)||(t.key&&t.key===semanticKey(type,item)))}
+function tombstoneMatches(type,item,t){
+ // Source deletions are record-specific. Multiple source records can legitimately share
+ // a title, and older rapid-click duplicates must not all disappear together.
+ if(type==='sources')return !!(t.id&&t.id===item.id);
+ return !!((t.id&&t.id===item.id)||(t.key&&t.key===semanticKey(type,item)))
+}
 function tombstoneWins(type,item,t){
  if(!tombstoneMatches(type,item,t))return false;
  const itemTime=recordModifiedAt(item),deletedAt=t.deletedAt||'';
@@ -209,6 +214,14 @@ function addTombstone(type,item){
 }
 async function api(url,opt={}){opt.headers={...(opt.headers||{}),'Content-Type':'application/json'};if(adminKey)opt.headers['X-PromptCraft-Key']=adminKey;const r=await fetch(url,opt);const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||`Request failed (${r.status})`);return data}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
+let sourceSaveInFlight=false;
+function setSourceSaveState(busy,message=''){
+ sourceSaveInFlight=!!busy;
+ const btn=$('#sourceSaveBtn'),clear=$('#sourceClear'),status=$('#sourceSaveStatus');
+ if(btn){btn.disabled=!!busy;btn.setAttribute('aria-busy',busy?'true':'false');btn.textContent=busy?'Saving…':'Save source'}
+ if(clear)clear.disabled=!!busy;
+ if(status){status.textContent=message||'';status.classList.toggle('hidden',!message)}
+}
 function fileBaseName(name=''){return String(name||'').replace(/\.[^.]+$/,'').trim()}
 function normalizeSourceUrl(value=''){const v=String(value||'').trim();if(!v)return '';if(/^10\.\d{4,9}\//i.test(v))return 'https://doi.org/'+v;if(/^doi:\s*10\./i.test(v))return 'https://doi.org/'+v.replace(/^doi:\s*/i,'');return v}
 function setStorageBadge(){
@@ -572,7 +585,7 @@ function returnToResearchSource(id){
 }
 
 window.editSource=id=>{const s=state.sources.find(x=>x.id===id);if(!s)return;researchSourceView='all';renderSourceNavigation();pendingImportedAnnotations=[];hideCitationImport();refreshSourceOptions();for(const [fid,key] of [['sourceId','id'],['sourceTitle','title'],['sourceAuthors','authors'],['sourceDate','date'],['sourcePublisher','publisher'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url'],['sourceArchive','archiveFile'],['sourceTheme','theme'],['sourcePriority','priority'],['sourceStatus','status'],['sourceType','sourceType']]){const el=$('#'+fid);if(el)el.value=s[key]||''}$('#sourceTags').value=(s.tags||[]).join(', ');$('#sourceFile').value='';$('#sourceFormTitle').textContent='Edit research source';refreshSourceEditorRelated(id);$('#sourceFormPanel').scrollIntoView({behavior:'smooth',block:'start'})}
-window.deleteSource=async id=>{const item=state.sources.find(x=>x.id===id);if(!item||!confirm(`Delete “${item.title}” and all files and notes attached to it?`))return;try{for(const m of sourceAttachments(id)){await deleteResearchAttachmentFile(m);addTombstone('researchMaterials',m)}state.researchMaterials=(state.researchMaterials||[]).filter(m=>m.sourceId!==id);for(const u of (state.paperUses||[]).filter(x=>x.sourceId===id))addTombstone('paperUses',u);state.paperUses=(state.paperUses||[]).filter(x=>x.sourceId!==id);addTombstone('sources',item);state.sources=state.sources.filter(x=>x.id!==id);await persist();renderSources();renderPaperUses();toast('Research source deleted')}catch(e){toast(e.message)}}
+window.deleteSource=async id=>{const item=state.sources.find(x=>x.id===id);if(!item||!confirm(`Delete this source record only: “${item.title}”? Its attached files and notes will also be removed. Other records with the same title will remain.`))return;try{for(const m of sourceAttachments(id)){await deleteResearchAttachmentFile(m);addTombstone('researchMaterials',m)}state.researchMaterials=(state.researchMaterials||[]).filter(m=>m.sourceId!==id);for(const u of (state.paperUses||[]).filter(x=>x.sourceId===id))addTombstone('paperUses',u);state.paperUses=(state.paperUses||[]).filter(x=>x.sourceId!==id);addTombstone('sources',item);state.sources=state.sources.filter(x=>x.id!==id);await persist();renderSources();renderPaperUses();toast('Research source deleted')}catch(e){toast(e.message)}}
 function clearSourceAnnotation(){for(const id of ['sourceAnnotationSourceId','sourceAnnotationId','annotationLocation','annotationText','annotationInterpretation','annotationPaperUse','annotationTags']){const el=$('#'+id);if(el)el.value=''}if($('#annotationType'))$('#annotationType').value=ANNOTATION_TYPES[0];$('#sourceAnnotationEditor')?.classList.add('hidden')}
 window.addSourceAnnotation=id=>{const s=state.sources.find(x=>x.id===id);if(!s)return;clearSourceAnnotation();$('#sourceAnnotationSourceId').value=id;$('#annotationFormTitle').textContent=`Add note · ${s.title}`;$('#sourceAnnotationEditor').classList.remove('hidden');$('#sourceAnnotationEditor').scrollIntoView({behavior:'smooth',block:'start'})}
 window.editSourceAnnotation=(sourceId,annotationId)=>{const s=state.sources.find(x=>x.id===sourceId),a=s?.annotations?.find(x=>x.id===annotationId);if(!a)return;$('#sourceAnnotationSourceId').value=sourceId;$('#sourceAnnotationId').value=annotationId;$('#annotationLocation').value=a.location||'';$('#annotationType').value=a.type||ANNOTATION_TYPES[0];$('#annotationText').value=a.text||'';$('#annotationInterpretation').value=a.interpretation||'';$('#annotationPaperUse').value=a.paperUse||'';$('#annotationTags').value=(a.tags||[]).join(', ');$('#annotationFormTitle').textContent=`Edit note · ${s.title}`;$('#sourceAnnotationEditor').classList.remove('hidden');$('#sourceAnnotationEditor').scrollIntoView({behavior:'smooth',block:'start'})}
@@ -721,11 +734,12 @@ async function syncCloud({silent=false}={}){
 }
 async function connectCloud(){
  adminKey=$('#adminKey').value.trim();if(!adminKey)return toast('Enter the Netlify admin key');
+ const btn=$('#cloudConnectConfirm');if(btn){btn.disabled=true;btn.textContent='Connecting…'}
+ toast('Connecting to cloud…');
  const remember=$('#rememberKey')?.checked!==false;
  sessionStorage.setItem(ADMIN_KEY_STORAGE,adminKey);
  if(remember)localStorage.setItem(ADMIN_KEY_STORAGE,adminKey);else localStorage.removeItem(ADMIN_KEY_STORAGE);
- const ok=await syncCloud();
- if(ok)$('#cloudPanel').classList.add('hidden')
+ try{const ok=await syncCloud();if(ok){$('#cloudPanel').classList.add('hidden');toast('Cloud connected')}}finally{if(btn){btn.disabled=false;btn.textContent='Connect'}}
 }
 function disconnectCloud(){
  cloud=false;adminKey='';sessionStorage.removeItem(ADMIN_KEY_STORAGE);localStorage.removeItem(ADMIN_KEY_STORAGE);
@@ -773,7 +787,7 @@ $('#connectBtn').onclick=()=>{$('#cloudPanel').classList.toggle('hidden');$('#ad
 $('#logSearch').oninput=renderLogs;$('#logFilter').onchange=renderLogs;$('#sourceSearch').oninput=renderSources;$('#sourceThemeFilter').onchange=renderSources;$('#sourceStatusFilter').onchange=renderSources;$('#sourceTypeFilter').onchange=renderSources;
 $$('.research-source-tab').forEach(btn=>btn.addEventListener('click',()=>setResearchSourceView(btn.dataset.sourceView)));
 $('#sourceJump')?.addEventListener('change',e=>jumpToResearchSource(e.target.value));
-$('#sourceAddQuick')?.addEventListener('click',()=>{researchSourceView='all';renderSourceNavigation();clearSource();$('#sourceFormPanel')?.scrollIntoView({behavior:'smooth',block:'start'});$('#sourceTitle')?.focus({preventScroll:true})});
+$('#sourceAddQuick')?.addEventListener('click',()=>{researchSourceView='all';renderSourceNavigation();clearSource();$('#sourceFormPanel')?.scrollIntoView({behavior:'smooth',block:'start'});$('#sourceFormPanel')?.classList.add('attention-pulse');setTimeout(()=>$('#sourceFormPanel')?.classList.remove('attention-pulse'),700);$('#sourceTitle')?.focus({preventScroll:true});toast('New source form ready')});
 if($('#citationImportOpen'))$('#citationImportOpen').onclick=showCitationImport;if($('#citationImportCancel'))$('#citationImportCancel').onclick=hideCitationImport;if($('#citationImportApply'))$('#citationImportApply').onclick=loadCitationImportIntoEditor;
 $('#logClear').onclick=clearLog;$('#sourceClear').onclick=clearSource;$('#annotationCancel').onclick=clearSourceAnnotation;$('#attachmentCancel').onclick=clearSourceAttachment;$('#sourceEditAddFile').onclick=()=>{const id=sourceEditorId();if(id)addSourceAttachment(id)};$('#sourceEditAddNote').onclick=()=>{const id=sourceEditorId();if(id)addSourceAnnotation(id)};$('#exportLogBtn').onclick=exportLog;$('#restoreLogBtn').onclick=restoreBaseLogs;$('#exportAllBtn').onclick=exportAll;
 $('#logForm').onsubmit=async e=>{e.preventDefault();const id=$('#logId').value||uuid(),original=state.logs.find(x=>x.id===id),originalImages=clone(original?.images||[]);if(pendingLogImages.length&&!adminKey)return toast('Connect cloud storage before saving new development images.');try{const keptIds=new Set(editingLogImages.map(x=>x.id));for(const oldImg of originalImages)if(!keptIds.has(oldImg.id))await deleteDevelopmentImageBlob(oldImg);const uploaded=[];for(const item of pendingLogImages)uploaded.push(await uploadDevelopmentImage(item));const images=[...editingLogImages,...uploaded];const obj={id,date:$('#logDate').value,phase:$('#logPhase').value,title:$('#logTitle').value.trim(),what:$('#logWhat').value.trim(),why:$('#logWhy').value.trim(),tags:$('#logTags').value.split(',').map(x=>x.trim()).filter(Boolean),images,updatedAt:new Date().toISOString()};const i=state.logs.findIndex(x=>x.id===id);if(i>=0)state.logs[i]=obj;else state.logs.push(obj);await persist();clearLog();renderLogs();renderVisualHistory();toast(images.length?'Development entry and images saved':'Development entry saved')}catch(err){console.error(err);toast(err.message||'Could not save development entry')}};
@@ -782,48 +796,54 @@ $('#paperUseCancel')?.addEventListener('click',clearPaperUse);
 
 $('#sourceForm').onsubmit=async e=>{
  e.preventDefault();
+ if(sourceSaveInFlight)return;
  const file=$('#sourceFile').files[0];
  const existingId=$('#sourceId').value;
  const id=existingId||uuid();
+ // Claim the ID immediately. A second click during a slow cloud save will update the
+ // same record instead of creating another source with a fresh UUID.
+ if(!existingId)$('#sourceId').value=id;
  const existing=state.sources.find(x=>x.id===id);
  const enteredTitle=$('#sourceTitle').value.trim();
  const title=enteredTitle||fileBaseName(file?.name||'');
- if(!title)return toast('Add an article/source name or choose a document first.');
+ if(!title){if(!existingId)$('#sourceId').value='';return toast('Add an article/source name or choose a document first.')}
+ setSourceSaveState(true,file?'Saving source and attaching document…':'Saving source…');
+ toast('Saving source…');
  const obj={...(existing||{}),id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,sourceType:$('#sourceType').value,title,authors:$('#sourceAuthors').value.trim(),date:$('#sourceDate').value.trim(),publisher:$('#sourcePublisher').value.trim(),apa:$('#sourceApa').value.trim(),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,paperSection:$('#sourcePaperSection').value.trim(),url:normalizeSourceUrl($('#sourceUrl').value),tags:$('#sourceTags').value.split(',').map(x=>x.trim()).filter(Boolean),archiveFile:$('#sourceArchive').value.trim(),annotations:[...(existing?.annotations||[]),...pendingImportedAnnotations.filter(a=>!(existing?.annotations||[]).some(x=>`${x.location||''}|${x.text||''}`===`${a.location||''}|${a.text||''}`))],created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};
  clearTombstonesFor('sources',obj);
  const i=state.sources.findIndex(x=>x.id===id);if(i>=0)state.sources[i]=obj;else state.sources.push(obj);
  const currentPrimary=(state.researchMaterials||[]).find(m=>m.sourceId===id&&m.role==='primary');
  if(currentPrimary){currentPrimary.title=obj.title||currentPrimary.fileName||'Primary source document';currentPrimary.materialType=obj.sourceType;currentPrimary.updatedAt=new Date().toISOString()}
  try{
-   // Save citation/source metadata first. File storage is a second, independent step.
    await persist();
+   setSourceSaveState(true,file?'Source saved. Uploading document…':'Finishing save…');
    let uploadWarning='';
    if(file){
      try{
        const old=(state.researchMaterials||[]).find(m=>m.sourceId===id&&m.role==='primary');
        const fileId=uuid(),sha256=await hashFile(file),location=await storeBackupFile(fileId,file,'sourceFileProgress');
        const att={id:old?.id||uuid(),sourceId:id,role:'primary',materialType:obj.sourceType,title:obj.title||file.name||'Primary source document',location:'',notes:'',fileId,fileName:file.name,size:file.size,type:file.type||'application/octet-stream',sha256,...location,created:old?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};
-       // Store the replacement before deleting the prior bytes.
        if(old){
          const oldSnapshot={...old};
          state.researchMaterials[state.researchMaterials.findIndex(m=>m.id===old.id)]=att;
          await persist();
          try{await deleteResearchAttachmentFile(oldSnapshot)}catch(cleanErr){console.warn('Old source file cleanup skipped',cleanErr)}
-       }else{
-         state.researchMaterials.push(att);await persist();
-       }
+       }else{state.researchMaterials.push(att);await persist()}
      }catch(fileErr){console.error(fileErr);uploadWarning=fileErr.message||'Document upload failed'}
    }
-   hideProgress('sourceFileProgress');
-   renderSources();renderPaperUses();
+   hideProgress('sourceFileProgress');renderSources();renderPaperUses();
    if(uploadWarning){
-     // Keep the saved source open so the user can retry the document without re-entering metadata.
-     window.editSource(id);
+     window.editSource(id);setSourceSaveState(false,'Source saved, but the document did not attach. You can retry the file without re-entering the source.');
      toast(`Source saved. Document was not attached: ${uploadWarning}`);
    }else{
+     setSourceSaveState(false,'Saved');
      clearSource();requestAnimationFrame(()=>returnToResearchSource(id));toast('Research source saved');
+     setTimeout(()=>setSourceSaveState(false,''),1800);
    }
- }catch(err){hideProgress('sourceFileProgress');toast(err.message||'Source could not be saved');console.error(err)}
+ }catch(err){
+   hideProgress('sourceFileProgress');setSourceSaveState(false,'Save failed. Your form is still here so you can try again.');
+   toast(err.message||'Source could not be saved');console.error(err)
+ }
 };
 
 $('#sourceAnnotationForm').onsubmit=async e=>{e.preventDefault();const sourceId=$('#sourceAnnotationSourceId').value,s=state.sources.find(x=>x.id===sourceId);if(!s)return toast('Research source not found.');const id=$('#sourceAnnotationId').value||uuid(),old=(s.annotations||[]).find(x=>x.id===id),a={id,location:$('#annotationLocation').value.trim(),type:$('#annotationType').value,text:$('#annotationText').value.trim(),interpretation:$('#annotationInterpretation').value.trim(),paperUse:$('#annotationPaperUse').value.trim(),tags:$('#annotationTags').value.split(',').map(x=>x.trim()).filter(Boolean),created:old?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};s.annotations=s.annotations||[];const i=s.annotations.findIndex(x=>x.id===id);if(i>=0)s.annotations[i]=a;else s.annotations.push(a);s.updatedAt=new Date().toISOString();await persist();clearSourceAnnotation();renderSources();renderPaperUses();returnToSourceEditorOrCard(sourceId,'#sourceEditAnnotations');toast('Research note saved')};

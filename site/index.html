@@ -115,7 +115,7 @@
             <label>Attach or replace primary document<input id="sourceFile" type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg,.webp,.gif,.svg,.xlsx,.xls,.csv,.ppt,.pptx"><small id="sourcePrimaryFileHelp">Optional. Leave this blank while editing to keep the current document.</small></label>
             <div id="sourceFileProgress" class="progress hidden"><div></div><span></span></div>
             <div id="sourcePrimaryDocumentCurrent" class="source-primary-current hidden"></div>
-            <label>Article / source name<input id="sourceTitle" required></label>
+            <label>Article / source name<input id="sourceTitle"></label>
           </div>
           <div class="grid2"><label>Author(s) / creator / organization<input id="sourceAuthors"></label><label>Date / year<input id="sourceDate" placeholder="2025 or 2025-08-12"></label></div>
           <label>Journal / publisher<input id="sourcePublisher"></label>
@@ -125,7 +125,7 @@
             <button type="button" class="ghost" onclick="copyEditorNarrative()">Copy narrative citation</button>
             <button type="button" class="ghost" onclick="copyEditorApa()">Copy APA reference</button>
           </div>
-          <label>Original source URL or DOI<input id="sourceUrl" type="url" placeholder="https://…"></label>
+          <label>Original source URL or DOI<input id="sourceUrl" type="text" inputmode="url" placeholder="https://… or 10.xxxx/…"></label>
           <details class="source-optional-details">
             <summary>More details <span>optional</span></summary>
             <p class="small">Use these when they are helpful. You do not need to complete them just to save a source.</p>
@@ -275,7 +275,7 @@
       <div class="panel form-panel">
         <h2>Add paper backup</h2>
         <form id="paperBackupForm">
-          <div class="grid2"><label>Paper version<input id="paperBackupVersion" placeholder="e.g. Working Draft 2026-09-29" required></label><label>Milestone / title<input id="paperBackupTitle" placeholder="e.g. Pre-Chapter 2 revision" required></label></div>
+          <div class="grid2"><label>Paper version<input id="paperBackupVersion" placeholder="e.g. Working Draft 2026-09-29"></label><label>Milestone / title<input id="paperBackupTitle" placeholder="e.g. Pre-Chapter 2 revision"></label></div>
           <label>What changed / why this copy matters<textarea id="paperBackupDescription" rows="3" placeholder="Briefly note the sections revised, major decisions, or what you plan to change next."></textarea></label>
           <label>Paper file<input id="paperBackupFile" type="file" accept=".docx,.doc,.pdf,.odt,.rtf,.txt" required><small>DOCX or PDF recommended. The original file is preserved and a SHA-256 checksum is recorded.</small></label>
           <div class="actions"><button type="submit">Save paper backup</button></div>
@@ -295,6 +295,6 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="seed-data.js?v=20260818-cloudsync1"></script>
-  <script src="app.js?v=20261001-consolidated1"></script>
+  <script src="app.js?v=20261002-saveflow2"></script>
 </body>
 </html>

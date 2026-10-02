@@ -209,6 +209,8 @@ function addTombstone(type,item){
 }
 async function api(url,opt={}){opt.headers={...(opt.headers||{}),'Content-Type':'application/json'};if(adminKey)opt.headers['X-PromptCraft-Key']=adminKey;const r=await fetch(url,opt);const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||`Request failed (${r.status})`);return data}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
+function fileBaseName(name=''){return String(name||'').replace(/\.[^.]+$/,'').trim()}
+function normalizeSourceUrl(value=''){const v=String(value||'').trim();if(!v)return '';if(/^10\.\d{4,9}\//i.test(v))return 'https://doi.org/'+v;if(/^doi:\s*10\./i.test(v))return 'https://doi.org/'+v.replace(/^doi:\s*/i,'');return v}
 function setStorageBadge(){
  const b=$('#storageBadge'),btn=$('#connectBtn'),syncBtn=$('#syncBtn');
  const unsynced=localStorage.getItem(UNSYNCED_KEY)==='1';
@@ -780,14 +782,20 @@ $('#paperUseCancel')?.addEventListener('click',clearPaperUse);
 
 $('#sourceForm').onsubmit=async e=>{
  e.preventDefault();
- const id=$('#sourceId').value||uuid(),existing=state.sources.find(x=>x.id===id),file=$('#sourceFile').files[0];
- const obj={...(existing||{}),id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,sourceType:$('#sourceType').value,title:$('#sourceTitle').value.trim(),authors:$('#sourceAuthors').value.trim(),date:$('#sourceDate').value.trim(),publisher:$('#sourcePublisher').value.trim(),apa:$('#sourceApa').value.trim(),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,paperSection:$('#sourcePaperSection').value.trim(),url:$('#sourceUrl').value.trim(),tags:$('#sourceTags').value.split(',').map(x=>x.trim()).filter(Boolean),archiveFile:$('#sourceArchive').value.trim(),annotations:[...(existing?.annotations||[]),...pendingImportedAnnotations.filter(a=>!(existing?.annotations||[]).some(x=>`${x.location||''}|${x.text||''}`===`${a.location||''}|${a.text||''}`))],created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const file=$('#sourceFile').files[0];
+ const existingId=$('#sourceId').value;
+ const id=existingId||uuid();
+ const existing=state.sources.find(x=>x.id===id);
+ const enteredTitle=$('#sourceTitle').value.trim();
+ const title=enteredTitle||fileBaseName(file?.name||'');
+ if(!title)return toast('Add an article/source name or choose a document first.');
+ const obj={...(existing||{}),id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,sourceType:$('#sourceType').value,title,authors:$('#sourceAuthors').value.trim(),date:$('#sourceDate').value.trim(),publisher:$('#sourcePublisher').value.trim(),apa:$('#sourceApa').value.trim(),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,paperSection:$('#sourcePaperSection').value.trim(),url:normalizeSourceUrl($('#sourceUrl').value),tags:$('#sourceTags').value.split(',').map(x=>x.trim()).filter(Boolean),archiveFile:$('#sourceArchive').value.trim(),annotations:[...(existing?.annotations||[]),...pendingImportedAnnotations.filter(a=>!(existing?.annotations||[]).some(x=>`${x.location||''}|${x.text||''}`===`${a.location||''}|${a.text||''}`))],created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};
  clearTombstonesFor('sources',obj);
  const i=state.sources.findIndex(x=>x.id===id);if(i>=0)state.sources[i]=obj;else state.sources.push(obj);
  const currentPrimary=(state.researchMaterials||[]).find(m=>m.sourceId===id&&m.role==='primary');
  if(currentPrimary){currentPrimary.title=obj.title||currentPrimary.fileName||'Primary source document';currentPrimary.materialType=obj.sourceType;currentPrimary.updatedAt=new Date().toISOString()}
  try{
-   // Save the source record first. A document-upload problem must never erase or block the citation/source record.
+   // Save citation/source metadata first. File storage is a second, independent step.
    await persist();
    let uploadWarning='';
    if(file){
@@ -795,19 +803,43 @@ $('#sourceForm').onsubmit=async e=>{
        const old=(state.researchMaterials||[]).find(m=>m.sourceId===id&&m.role==='primary');
        const fileId=uuid(),sha256=await hashFile(file),location=await storeBackupFile(fileId,file,'sourceFileProgress');
        const att={id:old?.id||uuid(),sourceId:id,role:'primary',materialType:obj.sourceType,title:obj.title||file.name||'Primary source document',location:'',notes:'',fileId,fileName:file.name,size:file.size,type:file.type||'application/octet-stream',sha256,...location,created:old?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};
-       // Only remove the prior bytes after the replacement has been stored successfully.
-       if(old)await deleteResearchAttachmentFile(old);
-       if(old)state.researchMaterials[state.researchMaterials.findIndex(m=>m.id===old.id)]=att;else state.researchMaterials.push(att);
-       await persist();
+       // Store the replacement before deleting the prior bytes.
+       if(old){
+         const oldSnapshot={...old};
+         state.researchMaterials[state.researchMaterials.findIndex(m=>m.id===old.id)]=att;
+         await persist();
+         try{await deleteResearchAttachmentFile(oldSnapshot)}catch(cleanErr){console.warn('Old source file cleanup skipped',cleanErr)}
+       }else{
+         state.researchMaterials.push(att);await persist();
+       }
      }catch(fileErr){console.error(fileErr);uploadWarning=fileErr.message||'Document upload failed'}
    }
-   hideProgress('sourceFileProgress');clearSource();renderSources();renderPaperUses();requestAnimationFrame(()=>returnToResearchSource(id));
-   toast(uploadWarning?`Source saved. File was not attached: ${uploadWarning}`:'Research source saved')
- }catch(err){hideProgress('sourceFileProgress');toast(err.message);console.error(err)}
+   hideProgress('sourceFileProgress');
+   renderSources();renderPaperUses();
+   if(uploadWarning){
+     // Keep the saved source open so the user can retry the document without re-entering metadata.
+     window.editSource(id);
+     toast(`Source saved. Document was not attached: ${uploadWarning}`);
+   }else{
+     clearSource();requestAnimationFrame(()=>returnToResearchSource(id));toast('Research source saved');
+   }
+ }catch(err){hideProgress('sourceFileProgress');toast(err.message||'Source could not be saved');console.error(err)}
 };
 
 $('#sourceAnnotationForm').onsubmit=async e=>{e.preventDefault();const sourceId=$('#sourceAnnotationSourceId').value,s=state.sources.find(x=>x.id===sourceId);if(!s)return toast('Research source not found.');const id=$('#sourceAnnotationId').value||uuid(),old=(s.annotations||[]).find(x=>x.id===id),a={id,location:$('#annotationLocation').value.trim(),type:$('#annotationType').value,text:$('#annotationText').value.trim(),interpretation:$('#annotationInterpretation').value.trim(),paperUse:$('#annotationPaperUse').value.trim(),tags:$('#annotationTags').value.split(',').map(x=>x.trim()).filter(Boolean),created:old?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};s.annotations=s.annotations||[];const i=s.annotations.findIndex(x=>x.id===id);if(i>=0)s.annotations[i]=a;else s.annotations.push(a);s.updatedAt=new Date().toISOString();await persist();clearSourceAnnotation();renderSources();renderPaperUses();returnToSourceEditorOrCard(sourceId,'#sourceEditAnnotations');toast('Research note saved')};
-$('#sourceAttachmentForm').onsubmit=async e=>{e.preventDefault();const sourceId=$('#attachmentSourceId').value,source=state.sources.find(x=>x.id===sourceId),id=$('#attachmentId').value||uuid(),existing=(state.researchMaterials||[]).find(x=>x.id===id),file=$('#attachmentFile').files[0];if(!source)return toast('Research source not found.');if(!existing&&!file)return toast('Choose a file to attach.');try{let stored=existing?{fileId:existing.fileId,fileName:existing.fileName,size:existing.size,type:existing.type,sha256:existing.sha256,storage:existing.storage,chunkCount:existing.chunkCount,staticPath:existing.staticPath}:{};if(file){if(cloud&&!adminKey)throw new Error('Connect with the cloud admin key before uploading research files.');if(existing)await deleteResearchAttachmentFile(existing);const fileId=uuid(),sha256=await hashFile(file),location=await storeBackupFile(fileId,file,'attachmentProgress');stored={fileId,fileName:file.name,size:file.size,type:file.type||'application/octet-stream',sha256,...location,staticPath:''}}const obj={id,sourceId,role:existing?.role||'supporting',materialType:$('#attachmentType').value,title:$('#attachmentTitle').value.trim()||stored.fileName||'Attached file',location:$('#attachmentLocation').value.trim(),notes:$('#attachmentNotes').value.trim(),created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString(),...stored};const i=state.researchMaterials.findIndex(x=>x.id===id);if(i>=0)state.researchMaterials[i]=obj;else state.researchMaterials.push(obj);await persist();hideProgress('attachmentProgress');clearSourceAttachment();renderSources();returnToSourceEditorOrCard(sourceId,'#sourceEditAttachments');toast('Research file saved')}catch(err){hideProgress('attachmentProgress');toast(err.message);console.error(err)}};
+$('#sourceAttachmentForm').onsubmit=async e=>{
+ e.preventDefault();const sourceId=$('#attachmentSourceId').value,source=state.sources.find(x=>x.id===sourceId),id=$('#attachmentId').value||uuid(),existing=(state.researchMaterials||[]).find(x=>x.id===id),file=$('#attachmentFile').files[0];
+ if(!source)return toast('Research source not found.');if(!existing&&!file)return toast('Choose a file to attach.');
+ try{
+   let stored=existing?{fileId:existing.fileId,fileName:existing.fileName,size:existing.size,type:existing.type,sha256:existing.sha256,storage:existing.storage,chunkCount:existing.chunkCount,staticPath:existing.staticPath}:{};
+   let oldSnapshot=null;
+   if(file){oldSnapshot=existing?{...existing}:null;const fileId=uuid(),sha256=await hashFile(file),location=await storeBackupFile(fileId,file,'attachmentProgress');stored={fileId,fileName:file.name,size:file.size,type:file.type||'application/octet-stream',sha256,...location,staticPath:''}}
+   const obj={id,sourceId,role:existing?.role||'supporting',materialType:$('#attachmentType').value,title:$('#attachmentTitle').value.trim()||stored.fileName||'Attached file',location:$('#attachmentLocation').value.trim(),notes:$('#attachmentNotes').value.trim(),created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString(),...stored};
+   const i=state.researchMaterials.findIndex(x=>x.id===id);if(i>=0)state.researchMaterials[i]=obj;else state.researchMaterials.push(obj);await persist();
+   if(file&&oldSnapshot){try{await deleteResearchAttachmentFile(oldSnapshot)}catch(cleanErr){console.warn('Old attachment cleanup skipped',cleanErr)}}
+   hideProgress('attachmentProgress');clearSourceAttachment();renderSources();returnToSourceEditorOrCard(sourceId,'#sourceEditAttachments');toast('Research file saved')
+ }catch(err){hideProgress('attachmentProgress');toast(err.message||'Research file could not be saved');console.error(err)}
+};
 
 if($('#themeAdd'))$('#themeAdd').onclick=()=>{clearTheme();openPlanEditor('themeEditor')};if($('#outlineAdd'))$('#outlineAdd').onclick=()=>{clearOutline();openPlanEditor('outlineEditor')};if($('#readingAdd'))$('#readingAdd').onclick=()=>{clearReading();openPlanEditor('readingEditor')};
 for(const [id,clear] of [['themeCancel',clearTheme],['outlineCancel',clearOutline],['readingCancel',clearReading]])$('#'+id).onclick=()=>{clear();hidePlanEditors()};
@@ -815,6 +847,26 @@ $('#themeForm').onsubmit=async e=>{e.preventDefault();const id=$('#themeId').val
 $('#outlineForm').onsubmit=async e=>{e.preventDefault();const id=$('#outlineId').value||uuid(),i=state.outline.findIndex(x=>x.id===id),prev=i>=0?state.outline[i]:{},obj={...prev,id,chapter:$('#outlineChapter').value.trim(),section:$('#outlineSection').value.trim(),questions:$('#outlineQuestions').value.trim(),status:$('#outlineStatus').value,updatedAt:new Date().toISOString()};if(i>=0)state.outline[i]=obj;else state.outline.push(obj);await persist();clearOutline();hidePlanEditors();renderPlans();toast('Paper section saved')};
 $('#readingForm').onsubmit=async e=>{e.preventDefault();const id=$('#readingId').value||uuid(),i=state.reading.findIndex(x=>x.id===id),prev=i>=0?state.reading[i]:{},obj={...prev,id,reading:$('#readingTitle').value.trim(),goal:$('#readingGoal').value.trim(),target:$('#readingTarget').value.trim(),done:$('#readingDone').checked,updatedAt:new Date().toISOString()};if(i>=0)state.reading[i]=obj;else state.reading.push(obj);await persist();clearReading();hidePlanEditors();renderPlans();toast('Task saved')};
 $('#backupForm').onsubmit=async e=>{e.preventDefault();const file=$('#backupFile').files[0];if(!file)return;const id=uuid(),version=$('#backupVersion').value.trim(),title=$('#backupTitle').value.trim(),phase=$('#backupPhase').value,description=$('#backupDescription').value.trim();try{progress(2,'Calculating checksum…');const sha256=await hashFile(file);const stored=await storeBackupFile(id,file);progress(90,'Saving snapshot record…');const b={id,version,title,phase,description,fileName:file.name,size:file.size,type:file.type,sha256,created:new Date().toISOString(),updatedAt:new Date().toISOString(),...stored};state.backups.push(b);if($('#backupLogIt').checked)state.logs.push({id:uuid(),date:today(),phase,title:`Project snapshot saved — ${version}: ${title}`,what:`Saved a backup source-control snapshot (${file.name}, ${fmtBytes(file.size)}). ${description}`,why:'Created a milestone copy so the development state can be restored independently of the active working files. This backup complements, rather than replaces, Git/version history.',tags:['backup','source control','project snapshot',version],updatedAt:new Date().toISOString()});await persist();progress(100,'Saved');setTimeout(hideProgress,600);e.target.reset();$('#backupLogIt').checked=true;render();toast('Project snapshot saved')}catch(err){hideProgress();toast(err.message);console.error(err)}};
-$('#paperBackupForm').onsubmit=async e=>{e.preventDefault();const file=$('#paperBackupFile').files[0];if(!file)return toast('Choose a paper file first.');const id=uuid(),version=$('#paperBackupVersion').value.trim(),title=$('#paperBackupTitle').value.trim(),description=$('#paperBackupDescription').value.trim();try{progress(2,'Calculating checksum…','paperBackupProgress');const sha256=await hashFile(file);const stored=await storeBackupFile(id,file,'paperBackupProgress');progress(90,'Saving paper backup record…','paperBackupProgress');const b={id,version,title,description,fileName:file.name,size:file.size,type:file.type||'application/octet-stream',sha256,created:new Date().toISOString(),updatedAt:new Date().toISOString(),...stored};state.paperBackups.push(b);await persist();progress(100,'Saved','paperBackupProgress');setTimeout(()=>hideProgress('paperBackupProgress'),600);e.target.reset();renderPaperBackups();toast(stored.storage==='local'&&cloud?'Paper backup saved locally; cloud upload will retry on sync':'Paper backup saved')}catch(err){hideProgress('paperBackupProgress');toast(err.message||'Paper backup could not be saved');console.error(err)}};
+$('#paperBackupForm').onsubmit=async e=>{
+ e.preventDefault();const file=$('#paperBackupFile').files[0];if(!file)return toast('Choose a paper file first.');
+ const id=uuid(),date=today(),version=$('#paperBackupVersion').value.trim()||`Working Draft ${date}`,title=$('#paperBackupTitle').value.trim()||fileBaseName(file.name)||'Professional Paper',description=$('#paperBackupDescription').value.trim();
+ try{
+   progress(2,'Calculating checksum…','paperBackupProgress');
+   const sha256=await hashFile(file);
+   const stored=await storeBackupFile(id,file,'paperBackupProgress');
+   progress(90,'Saving paper backup record…','paperBackupProgress');
+   const b={id,version,title,description,fileName:file.name,size:file.size,type:file.type||'application/octet-stream',sha256,created:new Date().toISOString(),updatedAt:new Date().toISOString(),...stored};
+   state.paperBackups.push(b);
+   await persist();
+   progress(100,'Saved','paperBackupProgress');
+   setTimeout(()=>hideProgress('paperBackupProgress'),600);
+   e.target.reset();
+   renderPaperBackups();
+   toast(stored.storage==='local'&&cloud?'Paper backup saved locally; cloud upload will retry on sync':'Paper backup saved');
+ }catch(err){hideProgress('paperBackupProgress');toast(err.message||'Paper backup could not be saved');console.error(err)}
+};
+
+$('#sourceFile')?.addEventListener('change',e=>{const file=e.target.files?.[0];if(file&&!$('#sourceTitle').value.trim())$('#sourceTitle').value=fileBaseName(file.name)});
+$('#paperBackupFile')?.addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;if(!$('#paperBackupVersion').value.trim())$('#paperBackupVersion').value=`Working Draft ${today()}`;if(!$('#paperBackupTitle').value.trim())$('#paperBackupTitle').value=fileBaseName(file.name)});
 
 bootstrap();

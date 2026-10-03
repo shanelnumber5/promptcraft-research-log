@@ -99,7 +99,23 @@
       <div id="sourceFormPanel" class="panel form-panel compact-form">
         <div class="source-form-title-row">
           <h2 id="sourceFormTitle">Add research source</h2>
-          <button type="button" class="ghost" id="citationImportOpen">Import source package</button>
+          <button type="button" class="ghost" id="citationImportOpen">Paste source package</button>
+        </div>
+        <div class="source-auto-intake" id="sourceAutoIntake">
+          <div class="source-auto-intake-head">
+            <div><h3>Quick add source</h3><p>Choose a paper or paste a DOI/URL. PromptCraft will fill the source record for you to review before saving.</p></div>
+            <span class="status-pill">Review before save</span>
+          </div>
+          <div class="source-auto-intake-grid">
+            <label>Paper to analyze<input id="sourceFile" type="file" accept=".pdf,.docx,.txt,.rtf"><small>PDF, DOCX, TXT, or RTF. The same file will be attached when you save the source.</small></label>
+            <label>DOI or article URL<input id="sourceAutoLookup" type="text" inputmode="url" placeholder="10.xxxx/... or https://..."><small>You can use a DOI/URL by itself, or combine it with the uploaded paper.</small></label>
+          </div>
+          <div class="source-auto-intake-actions">
+            <button type="button" id="sourceAutoAnalyze">Analyze &amp; fill source</button>
+            <span id="sourceAutoStatus" class="source-auto-status" role="status" aria-live="polite"></span>
+          </div>
+          <p class="small source-auto-privacy">AI analysis sends extracted article text to the OpenAI API configured for this Hub. Nothing is added to the Research Library until you review the fields and click <b>Save source</b>.</p>
+          <details id="sourceAutoPreview" class="source-auto-preview hidden"><summary>Review extracted notes</summary><div id="sourceAutoPreviewContent"></div></details>
         </div>
         <div id="citationImportPanel" class="citation-import-panel hidden">
           <div class="source-edit-block-head"><div><h3>Import from the paper research chat</h3><p>Paste a PromptCraft source package or labeled citation record. It fills the editor for review before anything is saved.</p></div></div>
@@ -112,7 +128,7 @@
           <input type="hidden" id="sourceId">
           <div class="source-primary-document">
             <div class="source-edit-block-head"><div><h3>Document / article</h3><p>Keep the document and its article/source name together.</p></div></div>
-            <label>Attach or replace primary document<input id="sourceFile" type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg,.webp,.gif,.svg,.xlsx,.xls,.csv,.ppt,.pptx"><small id="sourcePrimaryFileHelp">Optional. Leave this blank while editing to keep the current document.</small></label>
+            <p id="sourcePrimaryFileHelp" class="small">Use the paper selected in Quick add source above. Leave it blank while editing to keep the current document.</p>
             <div id="sourceFileProgress" class="progress hidden"><div></div><span></span></div>
             <div id="sourcePrimaryDocumentCurrent" class="source-primary-current hidden"></div>
             <label>Article / source name<input id="sourceTitle"></label>
@@ -295,6 +311,6 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="seed-data.js?v=20260818-cloudsync1"></script>
-  <script src="app.js?v=20261002-saveguard1"></script>
+  <script src="app.js?v=20261002-autosource1"></script>
 </body>
 </html>

@@ -76,3 +76,29 @@ On the computer that currently contains your newest local Research Log entries:
 5. Open the Hub on the second computer, connect with the same admin key once, and its copy will merge with the cloud state.
 
 Do not clear browser storage on the original computer until the first cloud merge has completed.
+
+## Automatic source intake — October 2, 2026
+
+The Research Library can now build a draft source record directly from a PDF/DOCX/TXT/RTF file, a DOI, or an article URL.
+
+### One-time setup
+
+1. Keep `PROMPTCRAFT_ADMIN_KEY` configured as before.
+2. Add a Netlify environment variable named `OPENAI_API_KEY` containing the API key used for research-source analysis.
+3. Optional: set `PROMPTCRAFT_RESEARCH_MODEL` to choose a different model. If omitted, the analyzer uses `gpt-6-luna`.
+4. Redeploy the full project root. Netlify must install the dependencies in `package.json`, including `pdf-parse` and `mammoth`.
+5. Open the deployed Hub and connect with the admin key.
+
+### Using it
+
+1. Open **Research Library** and choose **Add source**.
+2. In **Quick add source**, either choose a PDF/DOCX/TXT/RTF paper, paste a DOI/article URL, or provide both.
+3. Click **Analyze & fill source** once. The button disables and reports progress while the paper is processed.
+4. Review the filled citation fields, optional research fields, and the expandable extracted-notes preview.
+5. Correct anything that needs human review, then click **Save source**. The selected paper is attached at that point.
+
+The analyzer never saves the source automatically. It is instructed not to invent missing bibliographic facts, findings, page numbers, or methods. If `OPENAI_API_KEY` is not configured, DOI/URL metadata can still be filled where available, but article analysis is skipped.
+
+### Privacy
+
+For uploaded papers, the browser temporarily sends the file to the Hub's protected Netlify Blob storage so the server-side function can extract text. The temporary analysis copy is deleted after the analysis request. Extracted source text is then sent to the OpenAI Responses API configured for the Hub. The permanent Research Library copy is not created until **Save source** is clicked.

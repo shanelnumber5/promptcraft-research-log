@@ -224,6 +224,80 @@ function setSourceSaveState(busy,message=''){
 }
 function fileBaseName(name=''){return String(name||'').replace(/\.[^.]+$/,'').trim()}
 function normalizeSourceUrl(value=''){const v=String(value||'').trim();if(!v)return '';if(/^10\.\d{4,9}\//i.test(v))return 'https://doi.org/'+v;if(/^doi:\s*10\./i.test(v))return 'https://doi.org/'+v.replace(/^doi:\s*/i,'');return v}
+let sourceAnalyzeInFlight=false;
+function setSourceAnalyzeState(busy,message=''){
+ sourceAnalyzeInFlight=!!busy;
+ const btn=$('#sourceAutoAnalyze'),status=$('#sourceAutoStatus'),file=$('#sourceFile'),lookup=$('#sourceAutoLookup');
+ if(btn){btn.disabled=!!busy;btn.setAttribute('aria-busy',busy?'true':'false');btn.textContent=busy?'Analyzing…':'Analyze & fill source'}
+ if(file)file.disabled=!!busy;if(lookup)lookup.disabled=!!busy;
+ if(status){status.textContent=message||'';status.classList.toggle('is-error',String(message||'').toLowerCase().includes('failed'))}
+}
+function sourceAnalysisNotes(result={}){
+ const rows=[];
+ for(const n of Array.isArray(result.notes)?result.notes:[]){
+   if(!n||!String(n.text||'').trim())continue;
+   rows.push({id:uuid(),location:String(n.location||'').trim(),type:n.type||'Key finding',text:String(n.text||'').trim(),interpretation:String(n.interpretation||'').trim(),paperUse:String(n.paperUse||'').trim(),tags:Array.isArray(n.tags)?n.tags.map(x=>String(x).trim()).filter(Boolean):[],created:new Date().toISOString(),updatedAt:new Date().toISOString()});
+ }
+ for(const f of Array.isArray(result.figures)?result.figures:[]){
+   const title=String(f.title||'').trim(),relevance=String(f.relevance||'').trim();if(!title&&!relevance)continue;
+   rows.push({id:uuid(),location:String(f.location||'').trim(),type:f.type||'Figure / diagram',text:[title,relevance].filter(Boolean).join(': '),interpretation:relevance,paperUse:String(f.paperUse||'').trim(),tags:['figure'],created:new Date().toISOString(),updatedAt:new Date().toISOString()});
+ }
+ return rows;
+}
+function renderSourceAnalysisPreview(result={},notes=[]){
+ const box=$('#sourceAutoPreview'),content=$('#sourceAutoPreviewContent');if(!box||!content)return;
+ const useful=notes.slice(0,8);if(!useful.length&&!result.keyArgument){box.classList.add('hidden');content.innerHTML='';return}
+ const blocks=[];if(result.keyArgument)blocks.push(`<div class="source-auto-preview-argument"><b>Key finding</b><p>${esc(result.keyArgument)}</p></div>`);
+ if(useful.length)blocks.push(`<div class="source-auto-preview-notes">${useful.map(n=>`<div><span>${esc([n.location,n.type].filter(Boolean).join(' · ')||'Note')}</span><p>${esc(n.text)}</p></div>`).join('')}</div>${notes.length>useful.length?`<p class="small">Plus ${notes.length-useful.length} more staged note${notes.length-useful.length===1?'':'s'}.</p>`:''}`);
+ content.innerHTML=blocks.join('');box.classList.remove('hidden');
+}
+function applySourceAnalysis(result={},lookup=''){
+ const map=[['sourceTitle','title'],['sourceAuthors','authors'],['sourceDate','date'],['sourcePublisher','publisher'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url']];
+ let filled=0;
+ for(const [id,key] of map){const el=$('#'+id),v=result[key];if(el&&v){el.value=String(v);filled++}}
+ if(!$('#sourceUrl').value.trim()&&lookup)$('#sourceUrl').value=normalizeSourceUrl(lookup);
+ if(result.sourceType&&$('#sourceType')){$('#sourceType').value=result.sourceType;filled++}
+ if(result.priority&&$('#sourcePriority')&&['High','Medium','Low'].includes(result.priority)){$('#sourcePriority').value=result.priority;filled++}
+ if(result.theme&&$('#sourceTheme')){const select=$('#sourceTheme');if(![...select.options].some(o=>o.value===result.theme)){const o=document.createElement('option');o.value=o.textContent=result.theme;select.appendChild(o)}select.value=result.theme;filled++}
+ if(Array.isArray(result.tags)&&$('#sourceTags')){$('#sourceTags').value=result.tags.join(', ');filled++}
+ const notes=sourceAnalysisNotes(result),existingKeys=new Set(pendingImportedAnnotations.map(a=>`${a.location||''}|${a.text||''}`));for(const n of notes){const k=`${n.location||''}|${n.text||''}`;if(!existingKeys.has(k)){pendingImportedAnnotations.push(n);existingKeys.add(k)}}
+ renderSourceAnalysisPreview(result,notes);
+ const details=$('.source-optional-details');if(details&&(result.keyArgument||result.connection||result.methodology||result.theme||result.paperSection))details.open=true;
+ refreshSourceEditorRelated(sourceEditorId());
+ return {filled,notes:notes.length};
+}
+async function analyzeSourceIntake(){
+ if(sourceAnalyzeInFlight)return;
+ const file=$('#sourceFile')?.files?.[0],lookup=($('#sourceAutoLookup')?.value||$('#sourceUrl')?.value||'').trim();
+ if(!file&&!lookup)return toast('Choose a paper or paste a DOI/URL first.');
+ if(!adminKey)return toast('Connect the Hub with your admin key before using automatic source analysis.');
+ if(file&&!cloud)return toast('Connect cloud storage before analyzing an uploaded paper.');
+ let temp=null;
+ try{
+   setSourceAnalyzeState(true,file?'Uploading a temporary copy for analysis…':'Looking up source information…');
+   let filePayload=null;
+   if(file){
+     const ext=(file.name.split('.').pop()||'').toLowerCase();if(!['pdf','docx','txt','rtf'].includes(ext))throw new Error('Automatic analysis supports PDF, DOCX, TXT, and RTF files.');
+     const backupId='source-analysis-'+uuid();temp={backupId,chunkCount:0};
+     const stored=await storeBackupFile(backupId,file,'sourceFileProgress');
+     if(stored.storage!=='cloud')throw new Error('The temporary paper could not reach cloud storage. Reconnect the Hub and try again.');
+     temp.chunkCount=stored.chunkCount;filePayload={backupId,chunkCount:stored.chunkCount,fileName:file.name,mimeType:file.type||''};
+     setSourceAnalyzeState(true,'Reading the paper and building the source record…');
+   }else setSourceAnalyzeState(true,'Looking up the source and building the record…');
+   const x=await api('/.netlify/functions/analyze-source',{method:'POST',body:JSON.stringify({lookup,file:filePayload,themes:sourceFolders(),paperSections:paperSectionOptions()})});
+   const result=x.result||{},summary=applySourceAnalysis(result,lookup);
+   if(result.url&&$('#sourceAutoLookup'))$('#sourceAutoLookup').value=result.url;
+   hideProgress('sourceFileProgress');
+   const notePart=summary.notes?` · ${summary.notes} note${summary.notes===1?'':'s'} staged`:'';
+   const warning=result.warning?` ${result.warning}`:'';
+   setSourceAnalyzeState(false,`Filled ${summary.filled} field${summary.filled===1?'':'s'}${notePart}. Review, then Save source.${warning}`);
+   toast(result.analysisAvailable===false?'Source details filled; article analysis was unavailable':'Source analyzed and filled for review');
+ }catch(err){
+   console.error(err);hideProgress('sourceFileProgress');setSourceAnalyzeState(false,`Analysis failed: ${err.message||'Unknown error'}`);toast(err.message||'Could not analyze source');
+ }finally{
+   if(temp?.chunkCount){try{await api('/.netlify/functions/backup',{method:'POST',body:JSON.stringify({action:'delete',backupId:temp.backupId,chunkCount:temp.chunkCount})})}catch(e){console.warn('Temporary analysis file cleanup skipped',e)}}
+ }
+}
 function setStorageBadge(){
  const b=$('#storageBadge'),btn=$('#connectBtn'),syncBtn=$('#syncBtn');
  const unsynced=localStorage.getItem(UNSYNCED_KEY)==='1';
@@ -574,7 +648,7 @@ function loadCitationImportIntoEditor(){
   $('#sourceFormPanel').scrollIntoView({behavior:'smooth',block:'start'});toast('Source package loaded for review')
  }catch(e){toast(e.message||'Could not import citation package')}
 }
-function clearSource(){pendingImportedAnnotations=[];hideCitationImport();for(const id of ['sourceId','sourceTitle','sourceAuthors','sourceDate','sourcePublisher','sourceApa','sourceArgument','sourceConnection','sourceMethod','sourcePaperSection','sourceUrl','sourceTags','sourceArchive']){const el=$('#'+id);if(el)el.value=''}if($('#sourceTheme'))$('#sourceTheme').value='';$('#sourcePriority').value='High';$('#sourceStatus').value='Not Started';$('#sourceType').value='Article / PDF';$('#sourceFile').value='';$('#sourceFormTitle').textContent='Add research source';refreshSourceEditorRelated('')}
+function clearSource(){pendingImportedAnnotations=[];hideCitationImport();for(const id of ['sourceId','sourceTitle','sourceAuthors','sourceDate','sourcePublisher','sourceApa','sourceArgument','sourceConnection','sourceMethod','sourcePaperSection','sourceUrl','sourceTags','sourceArchive','sourceAutoLookup']){const el=$('#'+id);if(el)el.value=''}if($('#sourceTheme'))$('#sourceTheme').value='';$('#sourcePriority').value='High';$('#sourceStatus').value='Not Started';$('#sourceType').value='Article / PDF';$('#sourceFile').value='';$('#sourceFormTitle').textContent='Add research source';setSourceAnalyzeState(false,'');const ap=$('#sourceAutoPreview');if(ap)ap.classList.add('hidden');if($('#sourceAutoPreviewContent'))$('#sourceAutoPreviewContent').innerHTML='';refreshSourceEditorRelated('')}
 function returnToResearchSource(id){
  const card=document.getElementById(`source-card-${id}`);
  if(!card)return;
@@ -584,7 +658,7 @@ function returnToResearchSource(id){
  setTimeout(()=>card.classList.remove('source-card-return'),1400);
 }
 
-window.editSource=id=>{const s=state.sources.find(x=>x.id===id);if(!s)return;researchSourceView='all';renderSourceNavigation();pendingImportedAnnotations=[];hideCitationImport();refreshSourceOptions();for(const [fid,key] of [['sourceId','id'],['sourceTitle','title'],['sourceAuthors','authors'],['sourceDate','date'],['sourcePublisher','publisher'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url'],['sourceArchive','archiveFile'],['sourceTheme','theme'],['sourcePriority','priority'],['sourceStatus','status'],['sourceType','sourceType']]){const el=$('#'+fid);if(el)el.value=s[key]||''}$('#sourceTags').value=(s.tags||[]).join(', ');$('#sourceFile').value='';$('#sourceFormTitle').textContent='Edit research source';refreshSourceEditorRelated(id);$('#sourceFormPanel').scrollIntoView({behavior:'smooth',block:'start'})}
+window.editSource=id=>{const s=state.sources.find(x=>x.id===id);if(!s)return;researchSourceView='all';renderSourceNavigation();pendingImportedAnnotations=[];hideCitationImport();setSourceAnalyzeState(false,'');if($('#sourceAutoLookup'))$('#sourceAutoLookup').value='';refreshSourceOptions();for(const [fid,key] of [['sourceId','id'],['sourceTitle','title'],['sourceAuthors','authors'],['sourceDate','date'],['sourcePublisher','publisher'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url'],['sourceArchive','archiveFile'],['sourceTheme','theme'],['sourcePriority','priority'],['sourceStatus','status'],['sourceType','sourceType']]){const el=$('#'+fid);if(el)el.value=s[key]||''}$('#sourceTags').value=(s.tags||[]).join(', ');$('#sourceFile').value='';$('#sourceFormTitle').textContent='Edit research source';refreshSourceEditorRelated(id);$('#sourceFormPanel').scrollIntoView({behavior:'smooth',block:'start'})}
 window.deleteSource=async id=>{const item=state.sources.find(x=>x.id===id);if(!item||!confirm(`Delete this source record only: “${item.title}”? Its attached files and notes will also be removed. Other records with the same title will remain.`))return;try{for(const m of sourceAttachments(id)){await deleteResearchAttachmentFile(m);addTombstone('researchMaterials',m)}state.researchMaterials=(state.researchMaterials||[]).filter(m=>m.sourceId!==id);for(const u of (state.paperUses||[]).filter(x=>x.sourceId===id))addTombstone('paperUses',u);state.paperUses=(state.paperUses||[]).filter(x=>x.sourceId!==id);addTombstone('sources',item);state.sources=state.sources.filter(x=>x.id!==id);await persist();renderSources();renderPaperUses();toast('Research source deleted')}catch(e){toast(e.message)}}
 function clearSourceAnnotation(){for(const id of ['sourceAnnotationSourceId','sourceAnnotationId','annotationLocation','annotationText','annotationInterpretation','annotationPaperUse','annotationTags']){const el=$('#'+id);if(el)el.value=''}if($('#annotationType'))$('#annotationType').value=ANNOTATION_TYPES[0];$('#sourceAnnotationEditor')?.classList.add('hidden')}
 window.addSourceAnnotation=id=>{const s=state.sources.find(x=>x.id===id);if(!s)return;clearSourceAnnotation();$('#sourceAnnotationSourceId').value=id;$('#annotationFormTitle').textContent=`Add note · ${s.title}`;$('#sourceAnnotationEditor').classList.remove('hidden');$('#sourceAnnotationEditor').scrollIntoView({behavior:'smooth',block:'start'})}
@@ -789,6 +863,7 @@ $$('.research-source-tab').forEach(btn=>btn.addEventListener('click',()=>setRese
 $('#sourceJump')?.addEventListener('change',e=>jumpToResearchSource(e.target.value));
 $('#sourceAddQuick')?.addEventListener('click',()=>{researchSourceView='all';renderSourceNavigation();clearSource();$('#sourceFormPanel')?.scrollIntoView({behavior:'smooth',block:'start'});$('#sourceFormPanel')?.classList.add('attention-pulse');setTimeout(()=>$('#sourceFormPanel')?.classList.remove('attention-pulse'),700);$('#sourceTitle')?.focus({preventScroll:true});toast('New source form ready')});
 if($('#citationImportOpen'))$('#citationImportOpen').onclick=showCitationImport;if($('#citationImportCancel'))$('#citationImportCancel').onclick=hideCitationImport;if($('#citationImportApply'))$('#citationImportApply').onclick=loadCitationImportIntoEditor;
+if($('#sourceAutoAnalyze'))$('#sourceAutoAnalyze').onclick=analyzeSourceIntake;
 $('#logClear').onclick=clearLog;$('#sourceClear').onclick=clearSource;$('#annotationCancel').onclick=clearSourceAnnotation;$('#attachmentCancel').onclick=clearSourceAttachment;$('#sourceEditAddFile').onclick=()=>{const id=sourceEditorId();if(id)addSourceAttachment(id)};$('#sourceEditAddNote').onclick=()=>{const id=sourceEditorId();if(id)addSourceAnnotation(id)};$('#exportLogBtn').onclick=exportLog;$('#restoreLogBtn').onclick=restoreBaseLogs;$('#exportAllBtn').onclick=exportAll;
 $('#logForm').onsubmit=async e=>{e.preventDefault();const id=$('#logId').value||uuid(),original=state.logs.find(x=>x.id===id),originalImages=clone(original?.images||[]);if(pendingLogImages.length&&!adminKey)return toast('Connect cloud storage before saving new development images.');try{const keptIds=new Set(editingLogImages.map(x=>x.id));for(const oldImg of originalImages)if(!keptIds.has(oldImg.id))await deleteDevelopmentImageBlob(oldImg);const uploaded=[];for(const item of pendingLogImages)uploaded.push(await uploadDevelopmentImage(item));const images=[...editingLogImages,...uploaded];const obj={id,date:$('#logDate').value,phase:$('#logPhase').value,title:$('#logTitle').value.trim(),what:$('#logWhat').value.trim(),why:$('#logWhy').value.trim(),tags:$('#logTags').value.split(',').map(x=>x.trim()).filter(Boolean),images,updatedAt:new Date().toISOString()};const i=state.logs.findIndex(x=>x.id===id);if(i>=0)state.logs[i]=obj;else state.logs.push(obj);await persist();clearLog();renderLogs();renderVisualHistory();toast(images.length?'Development entry and images saved':'Development entry saved')}catch(err){console.error(err);toast(err.message||'Could not save development entry')}};
 $('#paperUseForm')?.addEventListener('submit',async e=>{e.preventDefault();const sourceId=$('#paperUseSourceId').value,s=state.sources.find(x=>x.id===sourceId);if(!s)return toast('Research source not found.');const id=$('#paperUseId').value||uuid(),old=(state.paperUses||[]).find(x=>x.id===id),annotationIds=[...document.querySelectorAll('#paperUseAnnotations input[type="checkbox"]:checked')].map(x=>x.value),obj={id,sourceId,paperSection:$('#paperUseSection').value,point:$('#paperUsePoint').value.trim(),status:$('#paperUseStatus').value,annotationIds,created:old?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};if(!obj.paperSection)return toast('Choose a paper section.');if(!obj.point)return toast('Add the point you want to make.');state.paperUses=state.paperUses||[];const i=state.paperUses.findIndex(x=>x.id===id);if(i>=0)state.paperUses[i]=obj;else state.paperUses.push(obj);await persist();clearPaperUse();renderPaperUses();renderSources();requestAnimationFrame(()=>document.getElementById('paper-use-'+id)?.scrollIntoView({behavior:'smooth',block:'center'}));toast('Paper-use card saved')});

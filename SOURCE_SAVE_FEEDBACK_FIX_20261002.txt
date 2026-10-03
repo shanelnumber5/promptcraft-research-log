@@ -1,0 +1,14 @@
+PromptCraft Research Hub - Source Save & Feedback Fix
+2026-10-02
+
+Fixes:
+- Prevents repeated clicks on Save Source from creating multiple records while a slow save/upload is in progress.
+- Assigns a new source ID immediately so any repeated submit targets the same source.
+- Disables Save/Clear while saving and shows visible status text (Saving..., Uploading..., Saved, or failure message).
+- Adds immediate feedback when Add Source is clicked.
+- Adds visible Connecting... feedback while cloud connection is in progress.
+- Makes source deletion record-specific by ID. Deleting one duplicate no longer deletes every source with the same title.
+- Clarifies the delete confirmation that only the selected source record is removed.
+- Forces browsers to load the new app.js cache version.
+
+No research content, source records, attachments, annotations, paper backups, seed data, or cloud functions are intentionally migrated or deleted.

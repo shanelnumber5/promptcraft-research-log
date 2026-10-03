@@ -144,3 +144,17 @@ button:active:not(:disabled){transform:translateY(1px)}
 #sourceSaveBtn[aria-busy="true"]{min-width:118px}
 .attention-pulse{animation:pcAttentionPulse .65s ease-out}
 @keyframes pcAttentionPulse{0%{box-shadow:0 0 0 0 rgba(107,168,248,.45)}100%{box-shadow:0 0 0 10px rgba(107,168,248,0)}}
+
+/* Automatic research-source intake */
+.source-auto-intake{margin:12px 0 18px;padding:16px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--panel) 92%,var(--accent) 8%)}
+.source-auto-intake-head{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+.source-auto-intake-head h3{margin:0 0 4px}
+.source-auto-intake-head p{margin:0;max-width:720px}
+.source-auto-intake-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.source-auto-intake-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.source-auto-status{font-size:.92rem;font-weight:700;line-height:1.35}
+.source-auto-status.is-error{color:var(--danger,#b83b3b)}
+.source-auto-privacy{margin:10px 0 0;opacity:.8}
+#sourceAutoAnalyze[aria-busy="true"]{cursor:progress}
+@media(max-width:760px){.source-auto-intake-grid{grid-template-columns:1fr}.source-auto-intake-head{display:block}.source-auto-intake-head .status-pill{display:inline-block;margin-top:8px}}
+.source-auto-preview{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}.source-auto-preview summary{cursor:pointer;font-weight:800;font-size:12px;color:#d7d7d1}.source-auto-preview-argument{margin-top:10px}.source-auto-preview-argument b{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}.source-auto-preview-argument p{margin:4px 0}.source-auto-preview-notes{display:grid;gap:7px;margin-top:9px}.source-auto-preview-notes>div{padding:8px 10px;border:1px solid #3a3a35;border-radius:8px;background:#1b1b1a}.source-auto-preview-notes span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.source-auto-preview-notes p{margin:3px 0 0;font-size:12px}

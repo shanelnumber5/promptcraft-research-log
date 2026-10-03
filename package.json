@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "@netlify/blobs": "latest"
+    "@netlify/blobs": "latest",
+    "pdf-parse": "1.1.1",
+    "mammoth": "1.9.0"
   }
 }

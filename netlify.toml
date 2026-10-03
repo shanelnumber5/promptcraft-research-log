@@ -4,3 +4,5 @@
 
 [functions]
   node_bundler = "esbuild"
+  # Preserve pdf-parse's CommonJS loader and dynamically selected PDF.js files.
+  external_node_modules = ["pdf-parse"]

@@ -107,7 +107,8 @@ async function readCloudFile(file) {
 }
 
 async function extractPdf(buffer) {
-  const mod = await import("pdf-parse");
+  // The package entry point runs a debug PDF read when bundled by esbuild.
+  const mod = await import("pdf-parse/lib/pdf-parse.js");
   const pdf = mod.default || mod;
   let pageNo = 0;
   const pagerender = async pageData => {

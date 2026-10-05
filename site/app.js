@@ -832,6 +832,8 @@ async function bootstrap(){
  }else{
    setStorageBadge();
  }
+ const requested=requestedMainView();
+ if(requested)activateMainView(requested,{updateUrl:false,scroll:false});
 }
 window.addEventListener('focus',async()=>{await pullCloudReadOnly({silent:true});if(adminKey&&localStorage.getItem(UNSYNCED_KEY)==='1')syncCloud({silent:true})});
 document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'){await pullCloudReadOnly({silent:true});if(adminKey&&localStorage.getItem(UNSYNCED_KEY)==='1')syncCloud({silent:true})}});
@@ -855,7 +857,35 @@ $('#imageModalClose').onclick=closeImageModal;$('#imageModal').onclick=e=>{if(e.
 });
 
 // Events
-$$('.tab').forEach(b=>b.onclick=()=>{$$('.tab').forEach(x=>x.classList.toggle('active',x===b));$$('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+b.dataset.view))});
+function activateMainView(view,{updateUrl=true,scroll=false}={}){
+ const target=[...$$('.tab')].find(b=>b.dataset.view===view);
+ if(!target)return false;
+ $$('.tab').forEach(x=>x.classList.toggle('active',x===target));
+ $$('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+view));
+ if(updateUrl){
+  const hashMap={log:'development-log',visual:'visual-history',research:'research-library',plan:'research-plan',backups:'project-backups'};
+  const hash=hashMap[view]||view;
+  if(location.hash!==`#${hash}`)history.replaceState(null,'',`${location.pathname}${location.search}#${hash}`);
+ }
+ if(scroll)document.getElementById('view-'+view)?.scrollIntoView({block:'start'});
+ return true;
+}
+function requestedMainView(){
+ const params=new URLSearchParams(location.search);
+ const q=(params.get('view')||'').trim().toLowerCase();
+ const h=(location.hash||'').replace(/^#/,'').trim().toLowerCase();
+ const aliases={
+  log:'log','development-log':'log','development':'log',
+  visual:'visual','visual-history':'visual',
+  research:'research','research-library':'research','library':'research',
+  plan:'plan','research-plan':'plan',
+  backups:'backups','project-backups':'backups','backup':'backups'
+ };
+ return aliases[q]||aliases[h]||null;
+}
+$$('.tab').forEach(b=>b.onclick=()=>activateMainView(b.dataset.view,{updateUrl:true}));
+window.addEventListener('hashchange',()=>{const view=requestedMainView();if(view)activateMainView(view,{updateUrl:false,scroll:false})});
+
 $$('.subtab').forEach(b=>b.onclick=()=>{$$('.subtab').forEach(x=>x.classList.toggle('active',x===b));$$('.plan-view').forEach(v=>v.classList.toggle('active',v.id==='plan-'+b.dataset.plan))});
 $('#connectBtn').onclick=()=>{$('#cloudPanel').classList.toggle('hidden');$('#adminKey').value=adminKey;$('#rememberKey').checked=!!localStorage.getItem(ADMIN_KEY_STORAGE)};$('#syncBtn').onclick=()=>syncCloud();$('#cloudDisconnect').onclick=disconnectCloud;$('#cloudCancel').onclick=()=>$('#cloudPanel').classList.add('hidden');$('#cloudConnectConfirm').onclick=connectCloud;
 $('#logSearch').oninput=renderLogs;$('#logFilter').onchange=renderLogs;$('#sourceSearch').oninput=renderSources;$('#sourceThemeFilter').onchange=renderSources;$('#sourceStatusFilter').onchange=renderSources;$('#sourceTypeFilter').onchange=renderSources;

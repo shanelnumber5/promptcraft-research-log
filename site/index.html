@@ -190,6 +190,13 @@
           <label>Why it matters / your interpretation<textarea id="annotationInterpretation" rows="3" placeholder="How does this connect to PromptCraft, the study, or the argument you are building?"></textarea></label>
           <label>Planned use in the paper<textarea id="annotationPaperUse" rows="3" placeholder="Section, claim, comparison, figure, method decision, limitation, etc."></textarea></label>
           <label>Tags<input id="annotationTags" placeholder="e.g. agency, overreliance, RQ1"></label>
+          <div class="annotation-visual-field">
+            <div class="source-section-head"><div><h4>Visual / figure</h4><span class="small">Optional. Attach the image directly to this note. Its page, description, and paper-use information come from the annotation above, so you do not have to enter them again.</span></div></div>
+            <div id="annotationVisualCurrent" class="hidden"></div>
+            <label>Image<input id="annotationVisualFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.svg"></label>
+            <label id="annotationVisualRemoveWrap" class="inline-check hidden"><input id="annotationVisualRemove" type="checkbox"> Remove current visual</label>
+            <div id="annotationVisualProgress" class="progress hidden"><div></div><span></span></div>
+          </div>
           <div class="actions"><button id="annotationCancel" type="button" class="ghost">Cancel</button><button type="submit">Save note</button></div>
         </form>
       </div>
@@ -311,6 +318,6 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="seed-data.js?v=20260818-cloudsync1"></script>
-  <script src="app.js?v=20261005-hashnav1"></script>
+  <script src="app.js?v=20261008-annotationvisual1"></script>
 </body>
 </html>

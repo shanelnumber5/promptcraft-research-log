@@ -437,29 +437,53 @@ function sourceAuthorInfo(authorText){
  const raw=String(authorText||'').trim();
  if(!raw)return{surnames:[],count:0,isEtAl:false};
  const isEtAl=/\bet\s+al\.?\b/i.test(raw);
- const text=raw.replace(/\bet\s+al\.?,?/ig,'').replace(/\s+/g,' ').trim().replace(/[;,]\s*$/,'');
+ const text=raw
+  .replace(/\bet\s+al\.?,?/ig,'')
+  .replace(/\s*\((?:19|20)\d{2}[a-z]?\)\s*$/i,'')
+  .replace(/\s+/g,' ')
+  .trim()
+  .replace(/[;,]\s*$/,'');
  const organizationPattern=/\b(university|college|institute|institution|association|organization|organisation|society|council|center|centre|department|agency|foundation|commission|committee|office|ministry|government|academy|school|corporation|company|group|network|digital promise|openai)\b/i;
- const unique=[];const add=name=>{name=String(name||'').trim().replace(/^[,&;\s]+|[,&;\s]+$/g,'');if(name&&!unique.includes(name))unique.push(name)};
- // APA-style names: "Surname, A. A., Surname-B, B., & Surname C, C."
- // Capture each surname that is immediately followed by initials/given-name text.
- const apaRe=/(?:^|(?:,\s*|;\s*|&\s*|\band\s+))([^,;&]+?)\s*,\s*(?=[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ.'’\-]*(?:\s|,|;|&|$))/g;
- let m;while((m=apaRe.exec(text)))add(m[1]);
- if(unique.length)return{surnames:unique,count:isEtAl?Math.max(3,unique.length):unique.length,isEtAl};
- // Explicit author separators used by imports or manual entry.
- if(organizationPattern.test(text)&&!/[;|\n]/.test(text)&&!/\s+(?:&|and)\s+/i.test(text)&&!/,/.test(text))return{surnames:[text],count:isEtAl?3:1,isEtAl};
- let parts=text.split(/\s*(?:;|\||\n)\s*|\s+(?:&|and)\s+/i).map(x=>x.trim()).filter(Boolean);
- // A plain comma-separated list such as "John Smith, Jane Doe, Alex Brown".
- if(parts.length===1&&/,/.test(text)&&!/^.+,\s*[A-Z](?:\.|$)/.test(text))parts=text.split(/\s*,\s*/).filter(Boolean);
+ const unique=[];
+ const add=name=>{name=String(name||'').trim().replace(/^[,&;\s]+|[,&;\s]+$/g,'');if(name&&!unique.includes(name))unique.push(name)};
  const surnameFromPart=part=>{
-  let v=String(part||'').trim().replace(/^&\s*/,'').replace(/[.;,]+$/,'');if(!v)return'';
+  let v=String(part||'').trim().replace(/^&\s*/,'').replace(/[.;,]+$/,'');
+  if(!v)return'';
+  // APA / inverted form: "Surname, A. A." -> Surname.
   if(v.includes(','))return v.split(',')[0].trim();
+  // Plain personal name: "Gil Schwarts" -> Schwarts.
   const words=v.split(/\s+/).filter(Boolean);
   if(words.length<=1)return words[0]||'';
-  // Keep common multi-word surname particles with the final surname.
-  const particles=new Set(['da','de','del','della','der','di','dos','du','la','le','van','von']);
-  let i=words.length-1;while(i>0&&particles.has(words[i-1].toLowerCase()))i--;
+  const suffixes=new Set(['jr','jr.','sr','sr.','ii','iii','iv']);
+  while(words.length>1&&suffixes.has(words[words.length-1].toLowerCase()))words.pop();
+  const particles=new Set(['da','de','del','della','der','di','dos','du','la','le','van','von','den','ten','ter']);
+  let i=words.length-1;
+  while(i>0&&particles.has(words[i-1].toLowerCase()))i--;
   return words.slice(i).join(' ');
  };
+ // Keep organizations intact rather than treating the final word as a surname.
+ if(organizationPattern.test(text)&&!/[;|\n]/.test(text)&&! /\s+(?:&|and)\s+/i.test(text)){
+  return{surnames:[text],count:isEtAl?3:1,isEtAl};
+ }
+ // Semicolons, pipes, line breaks, ampersands, and "and" are explicit author separators.
+ let parts=text.split(/\s*(?:;|\||\n)\s*|\s+(?:&|and)\s+/i).map(x=>x.trim()).filter(Boolean);
+ // APA lists often use repeated "Surname, Initials" pairs. Pull each surname from that structure.
+ if(parts.length===1&&/,/.test(text)){
+  const commaParts=text.split(/\s*,\s*/).filter(Boolean);
+  // Plain given-name-first list: "John Smith, Jane Doe, Alex Brown".
+  const looksPlainList=commaParts.length>1&&commaParts.every(x=>{
+   const w=x.trim().split(/\s+/).filter(Boolean);
+   return w.length>=2&&!w.every(t=>/^[A-ZÀ-ÖØ-Þ]\.?$/.test(t));
+  });
+  if(looksPlainList)parts=commaParts;
+  else{
+   const apaNames=[];
+   const re=/(?:^|,\s*)([^,]+?)\s*,\s*(?:[A-ZÀ-ÖØ-Þ](?:[A-Za-zÀ-ÖØ-öø-ÿ'’\-]*|\.)?(?:\s*[A-ZÀ-ÖØ-Þ](?:[A-Za-zÀ-ÖØ-öø-ÿ'’\-]*|\.)?)*)\s*(?=,\s*[^,]+\s*,|$)/g;
+   let m;while((m=re.exec(text)))apaNames.push(m[1].trim());
+   if(apaNames.length)parts=apaNames;
+   else if(!/^.+,\s*[A-Z](?:\.|$)/.test(text))parts=commaParts;
+  }
+ }
  parts.forEach(p=>add(surnameFromPart(p)));
  return{surnames:unique,count:isEtAl?Math.max(3,unique.length):unique.length,isEtAl};
 }

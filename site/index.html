@@ -139,6 +139,14 @@
           <div class="citation-copy-actions editor-citation-actions" aria-label="Copy citation options">
             <button type="button" class="ghost" onclick="copyEditorInText()">Copy in-text citation</button>
             <button type="button" class="ghost" onclick="copyEditorNarrative()">Copy narrative citation</button>
+            <details class="citation-starter-menu">
+              <summary>Copy citation starter</summary>
+              <div class="citation-starter-options">
+                <button type="button" class="ghost" onclick="copyEditorStarter('found')">Found that…</button>
+                <button type="button" class="ghost" onclick="copyEditorStarter('according')">According to…</button>
+                <button type="button" class="ghost" onclick="copyEditorStarter('argued')">Argued that…</button>
+              </div>
+            </details>
             <button type="button" class="ghost" onclick="copyEditorApa()">Copy APA reference</button>
           </div>
           <label>Original source URL or DOI<input id="sourceUrl" type="text" inputmode="url" placeholder="https://… or 10.xxxx/…"></label>
@@ -318,6 +326,6 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="seed-data.js?v=20260818-cloudsync1"></script>
-  <script src="app.js?v=20261012-citationauthor1"></script>
+  <script src="app.js?v=20261012-citationstarter1"></script>
 </body>
 </html>

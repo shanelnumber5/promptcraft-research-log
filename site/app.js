@@ -426,31 +426,53 @@ async function hydrateResearchThumbnails(root=document){const imgs=[...root.quer
 function attachmentHtml(m){const image=isImageAttachment(m);return `<div class="source-attachment${image?' source-attachment-image':''}">${image?`<button type="button" class="research-thumb" onclick="previewResearchAttachment('${m.id}')" aria-label="View larger preview of ${esc(m.title||m.fileName||'image')}"><img data-research-thumb="${esc(m.id)}" alt="${esc(m.title||m.fileName||'Research image')}" loading="lazy"><span class="research-thumb-placeholder">Image preview</span></button>`:''}<div class="source-attachment-copy"><span class="phase">${esc(m.materialType||'File')}</span><b>${esc(m.title||m.fileName||'Attachment')}</b>${m.location?`<span class="attachment-location">${esc(m.location)}</span>`:''}${m.notes?`<span class="small">${esc(m.notes)}</span>`:''}<span class="small">${esc(m.fileName||'')}${m.size?' · '+fmtBytes(m.size):''}</span></div><div class="attachment-actions">${image?`<button type="button" class="ghost" onclick="previewResearchAttachment('${m.id}')">View larger</button>`:''}${m.fileName?`<button type="button" class="ghost" onclick="openResearchAttachment('${m.id}')">Open</button><button type="button" class="ghost" onclick="downloadResearchAttachment('${m.id}')">Download</button>`:''}<button type="button" class="ghost" onclick="editSourceAttachment('${m.id}')">Edit</button><button type="button" class="ghost danger" onclick="deleteSourceAttachment('${m.id}')">Delete</button></div></div>`}
 function sourceShortCitation(s){
  if(!s)return'';
- const author=String(s.authors||'').trim();
- const year=String(s.date||'').match(/\b(19|20)\d{2}\b/)?.[0]||String(s.date||'').trim();
- if(!author)return year?`(${year})`:'';
- const first=author.split(/,|&| and /)[0].trim();
- return year?`${first} (${year})`:first
+ const info=sourceAuthorInfo(s.authors),names=info.surnames;
+ const year=String(s.date||'').match(/\b(19|20)\d{2}[a-z]?\b/i)?.[0]||String(s.date||'').trim();
+ let who='';if(info.count>=3&&names.length)who=`${names[0]} et al.`;else if(names.length===2)who=`${names[0]} & ${names[1]}`;else if(names.length===1)who=names[0];else who=String(s.authors||'').trim();
+ if(!who)return year?`(${year})`:'';
+ return year?`${who} (${year})`:who
 }
 
-function sourceAuthorSurnames(authorText){
- const text=String(authorText||'').trim();if(!text)return[];
- const found=[];
- const re=/(?:^|,\s*(?:&\s*)?)([^,]+),\s*(?:[A-Z][A-Za-z.'’\-]*\.?)(?=\s|,|$)/g;
- let m;while((m=re.exec(text))){const name=String(m[1]||'').trim();if(name&&!found.includes(name))found.push(name)}
- if(found.length)return found;
- const parts=text.split(/\s+(?:&|and)\s+/i).map(x=>x.trim()).filter(Boolean);
- return parts.map(x=>x.includes(',')?x.split(',')[0].trim():x).filter(Boolean);
+function sourceAuthorInfo(authorText){
+ const raw=String(authorText||'').trim();
+ if(!raw)return{surnames:[],count:0,isEtAl:false};
+ const isEtAl=/\bet\s+al\.?\b/i.test(raw);
+ const text=raw.replace(/\bet\s+al\.?,?/ig,'').replace(/\s+/g,' ').trim().replace(/[;,]\s*$/,'');
+ const organizationPattern=/\b(university|college|institute|institution|association|organization|organisation|society|council|center|centre|department|agency|foundation|commission|committee|office|ministry|government|academy|school|corporation|company|group|network|digital promise|openai)\b/i;
+ const unique=[];const add=name=>{name=String(name||'').trim().replace(/^[,&;\s]+|[,&;\s]+$/g,'');if(name&&!unique.includes(name))unique.push(name)};
+ // APA-style names: "Surname, A. A., Surname-B, B., & Surname C, C."
+ // Capture each surname that is immediately followed by initials/given-name text.
+ const apaRe=/(?:^|(?:,\s*|;\s*|&\s*|\band\s+))([^,;&]+?)\s*,\s*(?=[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ.'’\-]*(?:\s|,|;|&|$))/g;
+ let m;while((m=apaRe.exec(text)))add(m[1]);
+ if(unique.length)return{surnames:unique,count:isEtAl?Math.max(3,unique.length):unique.length,isEtAl};
+ // Explicit author separators used by imports or manual entry.
+ if(organizationPattern.test(text)&&!/[;|\n]/.test(text)&&!/\s+(?:&|and)\s+/i.test(text)&&!/,/.test(text))return{surnames:[text],count:isEtAl?3:1,isEtAl};
+ let parts=text.split(/\s*(?:;|\||\n)\s*|\s+(?:&|and)\s+/i).map(x=>x.trim()).filter(Boolean);
+ // A plain comma-separated list such as "John Smith, Jane Doe, Alex Brown".
+ if(parts.length===1&&/,/.test(text)&&!/^.+,\s*[A-Z](?:\.|$)/.test(text))parts=text.split(/\s*,\s*/).filter(Boolean);
+ const surnameFromPart=part=>{
+  let v=String(part||'').trim().replace(/^&\s*/,'').replace(/[.;,]+$/,'');if(!v)return'';
+  if(v.includes(','))return v.split(',')[0].trim();
+  const words=v.split(/\s+/).filter(Boolean);
+  if(words.length<=1)return words[0]||'';
+  // Keep common multi-word surname particles with the final surname.
+  const particles=new Set(['da','de','del','della','der','di','dos','du','la','le','van','von']);
+  let i=words.length-1;while(i>0&&particles.has(words[i-1].toLowerCase()))i--;
+  return words.slice(i).join(' ');
+ };
+ parts.forEach(p=>add(surnameFromPart(p)));
+ return{surnames:unique,count:isEtAl?Math.max(3,unique.length):unique.length,isEtAl};
 }
+function sourceAuthorSurnames(authorText){return sourceAuthorInfo(authorText).surnames}
 function sourceCitationYear(s){return String(s?.date||'').match(/\b(19|20)\d{2}[a-z]?\b/i)?.[0]||String(s?.date||'').trim()}
 function sourceParentheticalCitation(s){
- if(!s)return'';const names=sourceAuthorSurnames(s.authors),year=sourceCitationYear(s);
- let who='';if(names.length===1)who=names[0];else if(names.length===2)who=`${names[0]} & ${names[1]}`;else if(names.length>2)who=`${names[0]} et al.`;else who=String(s.authors||'').trim();
+ if(!s)return'';const info=sourceAuthorInfo(s.authors),names=info.surnames,year=sourceCitationYear(s);
+ let who='';if(info.count>=3&&names.length)who=`${names[0]} et al.`;else if(names.length===2)who=`${names[0]} & ${names[1]}`;else if(names.length===1)who=names[0];else who=String(s.authors||'').trim();
  if(who&&year)return`(${who}, ${year})`;if(who)return`(${who})`;if(year)return`(${year})`;return''
 }
 function sourceNarrativeCitation(s){
- if(!s)return'';const names=sourceAuthorSurnames(s.authors),year=sourceCitationYear(s);
- let who='';if(names.length===1)who=names[0];else if(names.length===2)who=`${names[0]} and ${names[1]}`;else if(names.length>2)who=`${names[0]} et al.`;else who=String(s.authors||'').trim();
+ if(!s)return'';const info=sourceAuthorInfo(s.authors),names=info.surnames,year=sourceCitationYear(s);
+ let who='';if(info.count>=3&&names.length)who=`${names[0]} et al.`;else if(names.length===2)who=`${names[0]} and ${names[1]}`;else if(names.length===1)who=names[0];else who=String(s.authors||'').trim();
  if(who&&year)return`${who} (${year})`;return who||year
 }
 async function copyText(text,label='Copied'){

@@ -855,6 +855,7 @@ $('#imageModalClose').onclick=closeImageModal;$('#imageModal').onclick=e=>{if(e.
   if(e.key!=='Enter')return;
   if(e.target?.tagName==='TEXTAREA'){e.stopPropagation();return;}
   if(e.target?.tagName==='BUTTON')return;
+  if(e.target?.matches('.citation-starter-menu>summary'))return;
   e.preventDefault();
   e.stopPropagation();
  });

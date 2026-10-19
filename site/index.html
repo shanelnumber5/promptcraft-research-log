@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#171716">
   <title>PromptCraft Research & Development Hub</title>
-  <link rel="stylesheet" href="style.css?v=20261019-window-layout1">
+  <link rel="stylesheet" href="style.css?v=20261019-citation-a11y1">
 </head>
 <body>
   <header class="topbar">
@@ -142,7 +142,7 @@
           <div class="grid2"><label>Author(s) / creator / organization<input id="sourceAuthors"></label><label>Date / year<input id="sourceDate" placeholder="2025 or 2025-08-12"></label></div>
           <label>Journal / publisher<input id="sourcePublisher"></label>
           <label>APA citation / reference<textarea id="sourceApa" rows="2"></textarea></label>
-          <div class="citation-copy-actions editor-citation-actions" aria-label="Copy citation options">
+          <div class="citation-copy-actions editor-citation-actions" role="group" aria-label="Copy citation options">
             <button type="button" class="ghost" onclick="copyEditorInText()">Copy in-text citation</button>
             <button type="button" class="ghost" onclick="copyEditorNarrative()">Copy narrative citation</button>
             <details class="citation-starter-menu">
@@ -334,6 +334,6 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="library-cleanup.js?v=20261019-library1"></script>
   <script src="seed-data.js?v=20261019-library1"></script>
-  <script src="app.js?v=20261019-library1"></script>
+  <script src="app.js?v=20261019-citation-a11y1"></script>
 </body>
 </html>

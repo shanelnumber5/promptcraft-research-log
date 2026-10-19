@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "node scripts/test-library-cleanup.mjs",
-    "test:layout": "node scripts/check-window-layout.mjs"
+    "test:layout": "node scripts/check-window-layout.mjs",
+    "test:citations": "node scripts/check-window-layout.mjs --citations"
   },
   "dependencies": {
     "@netlify/blobs": "latest",

@@ -212,3 +212,67 @@ button:active:not(:disabled){transform:translateY(1px)}
   .cloud-panel>div:first-child{grid-column:auto}
   .source-section-head{flex-wrap:wrap}
 }
+
+/* Citation Starter: explicit colors for text, controls and every interactive state. */
+.citation-copy-actions{
+  --citation-surface:#252523;
+  --citation-text:#f1f1ed;
+  --citation-border:#92928b;
+  --citation-active:#363633;
+  --citation-focus:#9bc7ff;
+}
+.citation-copy-actions button.ghost,
+.citation-copy-actions .citation-starter-menu>summary{
+  color:var(--citation-text);
+  background:var(--citation-surface);
+  border:1px solid var(--citation-border);
+  font-size:13px;
+  line-height:1.4;
+  min-height:36px;
+  padding:8px 10px;
+  filter:none;
+}
+.citation-copy-actions button.ghost:hover,
+.citation-copy-actions button.ghost:active,
+.citation-copy-actions .citation-starter-menu>summary:hover,
+.citation-copy-actions .citation-starter-menu[open]>summary{
+  color:var(--citation-text);
+  background:var(--citation-active);
+  border-color:var(--citation-focus);
+}
+.citation-copy-actions .citation-starter-options{
+  color:var(--citation-text);
+  background:var(--citation-surface);
+  border-color:var(--citation-border);
+  min-width:190px;
+  max-width:100%;
+}
+.citation-copy-actions :is(button,summary):focus-visible{
+  outline:3px solid var(--citation-focus);
+  outline-offset:3px;
+}
+#sourceForm label:has(> :is(#sourceTitle,#sourceAuthors,#sourceDate,#sourcePublisher,#sourceApa,#sourceUrl)){
+  color:#c7c7c1;
+}
+#sourceForm :is(#sourceTitle,#sourceAuthors,#sourceDate,#sourcePublisher,#sourceApa,#sourceUrl){
+  color:#f1f1ed;
+  background:#171716;
+  border-color:#92928b;
+  caret-color:#f1f1ed;
+}
+#sourceForm :is(#sourceTitle,#sourceAuthors,#sourceDate,#sourcePublisher,#sourceApa,#sourceUrl)::placeholder{
+  color:#aaa9a1;
+  opacity:1;
+}
+#sourceForm :is(#sourceTitle,#sourceAuthors,#sourceDate,#sourcePublisher,#sourceApa,#sourceUrl):focus-visible{
+  border-color:#9bc7ff;
+  outline:3px solid #9bc7ff;
+  outline-offset:3px;
+  box-shadow:none;
+}
+#sourceForm :is(#sourceTitle,#sourceAuthors,#sourceDate,#sourcePublisher,#sourceApa,#sourceUrl)::selection,
+.source-citation::selection{
+  color:#171716;
+  background:#9bc7ff;
+}
+.source-citation{color:#f1f1ed;background:#191918}

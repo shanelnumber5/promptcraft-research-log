@@ -37,6 +37,10 @@ try{
  await send('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/#research-library`});
  for(let n=0;n<100;n++){if(await evaluate("document.querySelectorAll('.source-card').length===13"))break;await new Promise(r=>setTimeout(r,100));}
  if(!await evaluate("document.querySelectorAll('.source-card').length===13"))throw new Error('Library did not render.');
+ if(process.argv.includes('--citations')){
+  const {default:audit}=await import('./audit-citation-starter.mjs');
+  await audit({send,evaluate,artifacts});
+ }else{
  const results=[];
  const measure=async(name,width)=>{
   const result=await evaluate(`(()=>{const width=document.documentElement.clientWidth;return {viewport:width,page:document.documentElement.scrollWidth,overflow:[...document.querySelectorAll('body *')].filter(el=>{const r=el.getBoundingClientRect();return el.checkVisibility()&&r.width&&r.height&&(r.right>width+1||r.left< -1)&&!el.closest('.tabs')}).slice(0,12).map(el=>({tag:el.tagName,id:el.id,class:el.className,width:Math.round(el.getBoundingClientRect().width),right:Math.round(el.getBoundingClientRect().right)}))}})()`);
@@ -59,4 +63,5 @@ try{
  const failures=results.filter(r=>r.page>r.viewport+1||r.overflow.length);
  console.log(JSON.stringify({artifacts,checks:results.length,failures,errors},null,2));
  if(failures.length||errors.length)process.exitCode=1;
+ }
 }finally{ws?.close();browser.kill();server.closeAllConnections();server.close();}

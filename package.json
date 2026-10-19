@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "test": "node scripts/test-library-cleanup.mjs"
+    "test": "node scripts/test-library-cleanup.mjs",
+    "test:layout": "node scripts/check-window-layout.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "latest",

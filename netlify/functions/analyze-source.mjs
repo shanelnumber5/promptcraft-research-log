@@ -185,7 +185,7 @@ async function analyzeWithOpenAI({ metadata, documentText, themes, paperSections
   const model = process.env.PROMPTCRAFT_RESEARCH_MODEL || "gpt-6-luna";
   const source = String(documentText || metadata.pageText || metadata.abstract || "").slice(0, 140000);
   if (!source) return { analysisAvailable: false, warning: "No article text or abstract was available for AI analysis. Bibliographic fields were filled where possible." };
-  const instructions = `You are assisting with a scholarly research library for PromptCraft, a scenario-based professional-learning environment for educators focused on AI-supported instructional decision-making, professional judgment, authentic Canvas course-design problems, accessibility, assessment, feedback, metacognition, critical evaluation, and human-AI collaboration.\n\nAnalyze only the supplied source text and metadata. Do not invent missing bibliographic facts, findings, methods, page numbers, quotations, or claims. If evidence is missing, return an empty string or empty array. Page numbers may be used only when the source text includes explicit markers like --- PAGE 12 ---. For DOCX/TXT/HTML without page markers, use a section/heading when clearly available or leave location blank. Keep notes concise and useful for writing a professional paper. Direct quotes must be exact and under 25 words; otherwise paraphrase. Return only valid JSON, no markdown.`;
+  const instructions = `You are assisting with a scholarly research library for PromptCraft, a professional-learning environment whose primary research focus is how educators develop and demonstrate instructional-design reasoning and course redesign. Purposeful creativity and critical AI collaboration support that reasoning. Look for diagnosis, evidence, justification, comparison of alternatives, feedback, reflection, revision and transfer to practice.\n\nAnalyze only the supplied source text and metadata. Do not invent missing bibliographic facts, findings, methods, page numbers, quotations, or claims. If evidence is missing, return an empty string or empty array. Page numbers may be used only when the source text includes explicit markers like --- PAGE 12 ---. For DOCX/TXT/HTML without page markers, use a section/heading when clearly available or leave location blank. Keep notes concise and useful for writing a professional paper. Direct quotes must be exact and under 25 words; otherwise paraphrase. Return only valid JSON, no markdown.`;
   const input = `AVAILABLE RESEARCH THEMES:\n${(themes || []).join("\n")}\n\nAVAILABLE PAPER SECTIONS:\n${(paperSections || []).join("\n")}\n\nKNOWN METADATA:\n${JSON.stringify(metadata, null, 2)}\n\nSOURCE TEXT:\n${source}\n\nReturn this JSON shape exactly:\n{\n  "title":"", "authors":"", "date":"", "publisher":"", "apa":"", "url":"", "sourceType":"",\n  "theme":"", "priority":"High|Medium|Low", "keyArgument":"", "connection":"", "methodology":"", "paperSection":"",\n  "tags":[],\n  "notes":[{"location":"", "type":"Key finding|Direct quote|Paraphrase|Definition|Method / measure|Limitation|Figure / diagram|Table / data|Paper idea|Other", "text":"", "interpretation":"", "paperUse":"", "tags":[]}],\n  "figures":[{"location":"", "type":"Figure / diagram|Table / data", "title":"", "relevance":"", "paperUse":""}]\n}`;
   const r = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -219,7 +219,10 @@ export default async (req) => {
       documentText = await extractFileText(buffer, body.file.fileName, body.file.mimeType || "");
     }
     const ai = await analyzeWithOpenAI({ metadata, documentText, themes: body.themes || [], paperSections: body.paperSections || [] });
-    const merged = { ...metadata, ...ai };
+    const merged = { ...metadata };
+    for (const [key, value] of Object.entries(ai)) {
+      if (value !== "" && value !== null && value !== undefined && (!Array.isArray(value) || value.length)) merged[key] = value;
+    }
     if (!merged.apa) merged.apa = apaFromMeta(merged);
     return Response.json({ ok: true, result: merged, extractedCharacters: documentText.length });
   } catch (err) {

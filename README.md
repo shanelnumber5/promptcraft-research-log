@@ -1,5 +1,34 @@
 # PromptCraft Research & Development Hub
 
+## Research Library cleanup — October 19, 2026
+
+The library now follows five categories: Instructional-Design Reasoning & Course Redesign;
+Professional Learning, Feedback & Reflection; Critical AI Collaboration & Educator Agency;
+Scenario-Based Learning & Purposeful Creativity; and Background / Archive.
+Instructional-design reasoning is the primary research focus.
+
+The current seed contains **13 sources, 38 annotations and 11 imported images**. Older
+counts below describe previous builds. All original seed records are retained in
+`archive/project-records/research-library-before-2026-10-19.js` and in the cleanup archive.
+References with conflicting imported metadata are flagged for publication-level review;
+they have not been guessed or silently rewritten.
+
+On first load of this build, a versioned cleanup archives the existing state before
+reorganizing sources and resetting previous paper-use cards, source paper sections,
+and note-level paper-use intentions. Original notes, quotations, interpretations,
+attachments, logs, planning records and backups are preserved. Later loads keep new
+paper-use assignments. Reading status is separate from manuscript use. The Research
+Library includes a previous-assignments archive and a download of the original records.
+
+Close older Hub tabs before using this build on each device. Browser/cloud data is
+cleaned when loaded and merged by this build; editing this repository does not itself
+modify the deployed Hub or another browser. No attachment bytes are moved or deleted
+by cleanup. Archived JSON contains records and storage references, **not file bytes**;
+retain the original browsers, IndexedDB, Netlify Blob stores and offline archive.
+
+Run `npm test` with Node.js to check seed preservation, migration repeatability,
+synchronization, citation parsing and HTML IDs.
+
 This build combines the PromptCraft development log, research source tracker, research planning sheets, and milestone project backups into one browser-based hub.
 
 ## Included data

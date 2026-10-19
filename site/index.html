@@ -82,8 +82,8 @@
 
     <section id="view-research" class="view">
       <div class="page-head">
-        <div><h1>Research Library</h1><p>One record per source. Keep the citation, actual files, page-level notes, diagrams, images, and paper connections together.</p></div>
-        <div class="stats"><div><b id="sourceCount">0</b><span>sources</span></div><div><b id="readCount">0</b><span>read/cited</span></div></div>
+        <div><h1>Research Library</h1><p>How educators develop and demonstrate instructional-design reasoning through PromptCraft, supported by purposeful creativity and critical AI collaboration.</p></div>
+        <div class="stats"><div><b id="sourceCount">0</b><span>sources</span></div><div><b id="readCount">0</b><span>read</span></div></div>
       </div>
       <div class="warning"><strong>Everything stays with the source.</strong> Add the article or artifact once, then attach its PDF, figures, screenshots, page notes, quotations, and paper-use ideas directly to that record.</div>
       <nav class="source-library-toolbar" aria-label="Research source navigation">
@@ -96,6 +96,12 @@
           <button type="button" class="ghost" id="sourceAddQuick">Add source</button>
         </div>
       </nav>
+      <details class="panel" id="researchArchive">
+        <summary>Previous paper assignments &amp; cleanup archive</summary>
+        <p class="small">Earlier assignments and original research records are preserved here. Files remain in their existing storage.</p>
+        <div id="researchArchiveContent"></div>
+        <button type="button" class="ghost" onclick="exportResearchArchive()">Download original records</button>
+      </details>
       <div id="sourceFormPanel" class="panel form-panel compact-form">
         <div class="source-form-title-row">
           <h2 id="sourceFormTitle">Add research source</h2>
@@ -150,11 +156,12 @@
             <button type="button" class="ghost" onclick="copyEditorApa()">Copy APA reference</button>
           </div>
           <label>Original source URL or DOI<input id="sourceUrl" type="text" inputmode="url" placeholder="https://… or 10.xxxx/…"></label>
+          <label>Research category<select id="sourceTheme"></select></label>
           <details class="source-optional-details">
             <summary>More details <span>optional</span></summary>
             <p class="small">Use these when they are helpful. You do not need to complete them just to save a source.</p>
-            <div class="grid2"><label>Research theme<select id="sourceTheme"></select></label><label>Source type<select id="sourceType"><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Research Artifact</option><option>Other</option></select></label></div>
-            <div class="grid2"><label>Priority<select id="sourcePriority"><option>High</option><option>Medium</option><option>Low</option></select></label><label>Status<select id="sourceStatus"><option>Not Started</option><option>In Progress</option><option>Read</option><option>Cited</option></select></label></div>
+            <label>Source type<select id="sourceType"><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Research Artifact</option><option>Other</option></select></label>
+            <div class="grid2"><label>Priority<select id="sourcePriority"><option>High</option><option>Medium</option><option>Low</option></select></label><label>Reading status<select id="sourceStatus"><option>Not Started</option><option>In Progress</option><option>Read</option></select></label></div>
             <label>Key argument / useful finding<textarea id="sourceArgument" rows="3"></textarea></label>
             <label>Connection to PromptCraft<textarea id="sourceConnection" rows="3"></textarea></label>
             <div class="grid2"><label>Methodology<textarea id="sourceMethod" rows="2"></textarea></label><label>Likely paper section<input id="sourcePaperSection" list="sourcePaperSectionOptions" placeholder="e.g. Chapter 2 · Professional Judgment"><datalist id="sourcePaperSectionOptions"></datalist></label></div>
@@ -231,7 +238,7 @@
         <div id="paperUseList" class="paper-use-list"></div>
       </section>
 
-      <div class="filters source-filters"><input id="sourceSearch" placeholder="Search sources, files, notes, pages, and tags…"><select id="sourceThemeFilter"></select><select id="sourceTypeFilter"><option value="">All source types</option><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Research Artifact</option><option>Other</option></select><select id="sourceStatusFilter"><option value="">All statuses</option><option>Not Started</option><option>In Progress</option><option>Read</option><option>Cited</option></select></div>
+      <div class="filters source-filters"><input id="sourceSearch" placeholder="Search sources, files, notes, pages, and tags…"><select id="sourceThemeFilter"></select><select id="sourceTypeFilter"><option value="">All source types</option><option>Article / PDF</option><option>Book / Chapter</option><option>Report / Policy</option><option>Dissertation / Thesis</option><option>Web Source</option><option>Dataset / Table</option><option>Research Artifact</option><option>Other</option></select><select id="sourceStatusFilter"><option value="">All statuses</option><option>Not Started</option><option>In Progress</option><option>Read</option></select></div>
       <div id="sourceList" class="cards"></div>
     </section>
 
@@ -273,7 +280,7 @@
 
       <details class="plan-archive">
         <summary>Research focus areas</summary>
-        <p class="small">These still power the Research Library and source organization, but they no longer crowd the day-to-day plan.</p>
+        <p class="small">The library follows five research categories. Earlier detailed planning records are retained in the data and cleanup archive.</p>
         <div id="themesList"></div>
       </details>
       <div id="themeEditor" class="hidden"><form id="themeForm"><input id="themeId"><input id="themeName"><select id="themeStatus"><option>Not Started</option><option>In Progress</option><option>Established</option><option>Complete</option></select><textarea id="themeQuestion"></textarea><textarea id="themeSearch"></textarea><textarea id="themeChapters"></textarea><textarea id="themeScenarios"></textarea><input id="themeSources" type="number" value="0"><button id="themeCancel" type="button">Cancel</button></form></div>
@@ -325,7 +332,8 @@
     </figure>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="seed-data.js?v=20260818-cloudsync1"></script>
-  <script src="app.js?v=20261012-authorparse2"></script>
+  <script src="library-cleanup.js?v=20261019-library1"></script>
+  <script src="seed-data.js?v=20261019-library1"></script>
+  <script src="app.js?v=20261019-library1"></script>
 </body>
 </html>

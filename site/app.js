@@ -1,16 +1,7 @@
 
 const PHASES=['Conceptualization','Design','Prototype','Iteration','Testing','Reflection','Key Decision','Problem / Challenge'];
 const LEGACY_PHASE={Decision:'Key Decision',Problem:'Problem / Challenge'};
-const SOURCE_FOLDERS=[
-  'Educator AI Literacy & Critical Evaluation',
-  'Professional Judgment, Agency & Human-AI Decision Making',
-  'Authentic Scenario-Based & Game-Based Professional Learning',
-  'Instructional Design, Canvas, Accessibility & OSCQR',
-  'Educator Professional Development & Transfer to Practice',
-  'Metacognition, Reflection & Learning Transfer',
-  'Research Instrumentation, Process Data & Validity',
-  'Mixed Methods Action Research & Iterative Design'
-];
+const SOURCE_FOLDERS=PromptCraftLibrary.categories;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const clone=o=>JSON.parse(JSON.stringify(o));
 const uuid=()=>crypto.randomUUID?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(16).slice(2);
@@ -22,6 +13,7 @@ const fmtBytes=n=>n<1024?`${n} B`:n<1048576?`${(n/1024).toFixed(1)} KB`:`${(n/10
 const STORAGE_KEY='promptcraft-hub-state-v1';
 const ADMIN_KEY_STORAGE='pc-admin-key';
 const UNSYNCED_KEY='pc-cloud-unsynced';
+const RESEARCH_PLAN_VERSION=2;
 let state=loadLocal();
 let cloud=false;
 let syncing=false;
@@ -30,7 +22,6 @@ const IMAGE_TYPES=['Before','After','Prototype','Bug','Final','Reference','Proce
 const MATERIAL_TYPES=['Article / PDF','Book / Chapter','Report / Policy','Dissertation / Thesis','Web Source','Dataset / Table','Diagram / Figure','Screenshot / Image','Presentation / Slide','Notes / Other'];
 const MATERIAL_STATUSES=['Captured','Reviewing','Annotated','Ready to Cite','Cited','Archived'];
 const ANNOTATION_TYPES=['Key finding','Direct quote','Paraphrase','Definition','Method / measure','Limitation','Figure / diagram','Table / data','Paper idea','Other'];
-const RESEARCH_PLAN_VERSION=2;
 let editingLogImages=[];
 let pendingLogImages=[];
 let pendingImportedAnnotations=[];
@@ -65,7 +56,7 @@ function mergeSourceCollection(baseItems,savedItems){
  const base=Array.isArray(baseItems)?baseItems:[],saved=dedupeByStableId(savedItems),used=new Set();
  const merged=base.map(b=>{
   let idx=saved.findIndex((item,i)=>!used.has(i)&&item.id&&b.id&&item.id===b.id);
-  if(idx<0){const key=String(b.title||'').trim().toLowerCase();idx=saved.findIndex((item,i)=>!used.has(i)&&String(item.title||'').trim().toLowerCase()===key)}
+  if(idx<0){const key=String(b.title||'').trim().toLowerCase();idx=saved.findIndex((item,i)=>!item.id&&!used.has(i)&&String(item.title||'').trim().toLowerCase()===key)}
   if(idx<0)return clone(b);
   used.add(idx);
   return mergeEditableRecord(b,saved[idx]);
@@ -84,9 +75,7 @@ function applyResearchPlanMigration(x,seed){
  x.meta=(x.meta&&typeof x.meta==='object')?x.meta:{};
  const current=Number(x.meta.researchPlanVersion||0);
  if(current<RESEARCH_PLAN_VERSION){
-   x.themes=clone(seed.themes||[]);
-   x.outline=clone(seed.outline||[]);
-   x.reading=clone(seed.reading||[]);
+   // Older plans have already been merged. Never replace user planning records.
    x.meta.researchPlanVersion=RESEARCH_PLAN_VERSION;
    x.meta.researchPlanUpdated='2026-09-29';
  }
@@ -108,7 +97,8 @@ function normalizeResearchLibrary(x){
  return x
 }
 function mergeBaseData(saved){
- const seed=normalizeSeed(window.PROMPTCRAFT_SEED),x=(saved&&typeof saved==='object')?clone(saved):{};
+ const seed=normalizeSeed(window.PROMPTCRAFT_SEED),x=PromptCraftLibrary.migrate(saved&&typeof saved==='object'?saved:seed);
+ x.researchArchives=PromptCraftLibrary.unionArchives(seed.researchArchives||[],x.researchArchives||[]);
  x.logs=mergeCollection(seed.logs,x.logs,e=>`${isoDate(e.date)}|${String(e.title||'').trim().toLowerCase()}`);
  x.sources=mergeSourceCollection(seed.sources,x.sources);
  x.themes=mergePlanCollection(seed.themes,x.themes,t=>String(t.theme||'').trim().toLowerCase());
@@ -119,9 +109,9 @@ function mergeBaseData(saved){
  if(!Array.isArray(x.paperUses))x.paperUses=[];
  x.researchMaterials=mergeCollection(seed.researchMaterials||[],x.researchMaterials||[],m=>m.id||`${String(m.title||'').trim().toLowerCase()}|${String(m.fileName||'').trim().toLowerCase()}`);
  normalizeResearchLibrary(x);
- return applyTombstones(applyResearchPlanMigration(x,seed))
+ return applyTombstones(applyResearchPlanMigration(PromptCraftLibrary.migrate(x),seed))
 }
-function loadLocal(){try{const raw=localStorage.getItem(STORAGE_KEY);if(raw)return mergeBaseData(JSON.parse(raw))}catch{}return normalizeSeed(window.PROMPTCRAFT_SEED)}
+function loadLocal(){const raw=localStorage.getItem(STORAGE_KEY);if(raw){try{return mergeBaseData(JSON.parse(raw))}catch(e){throw new Error('Saved research data could not be loaded. It has not been replaced. '+e.message)}}return mergeBaseData(window.PROMPTCRAFT_SEED)}
 function persistLocal(){
  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));return true}
  catch(e){console.warn('Local state save failed',e);return false}
@@ -151,7 +141,7 @@ function syncCollection(type,localItems,remoteItems){
  const out=[],usedRemote=new Set();
  for(const l of local){
    let ri=remote.findIndex((r,i)=>!usedRemote.has(i)&&recordKey(type,r)===recordKey(type,l));
-   if(ri<0)ri=remote.findIndex((r,i)=>!usedRemote.has(i)&&semanticKey(type,r)===semanticKey(type,l));
+   if(ri<0)ri=remote.findIndex((r,i)=>!usedRemote.has(i)&&(!r.id||!l.id)&&semanticKey(type,r)===semanticKey(type,l));
    if(ri<0){out.push(clone(l));continue}
    usedRemote.add(ri);const r=remote[ri],lt=l.updatedAt||l.created||'',rt=r.updatedAt||r.created||'';
    if(lt&&rt&&lt!==rt)out.push(clone(lt>rt?l:r));
@@ -206,6 +196,10 @@ function mergeSyncStates(localState,remoteState){
  const out={...clone(r),...clone(l)};
  for(const type of ['logs','sources','themes','outline','reading','backups','paperBackups','researchMaterials','paperUses'])out[type]=syncCollection(type,l[type],r[type]);
  out.deleted=mergeDeleted(l.deleted,r.deleted);
+ out.researchArchives=PromptCraftLibrary.unionArchives(l.researchArchives||[],r.researchArchives||[]);
+ // Preserve divergent source versions, including their nested notes, before choosing an active copy.
+ for(const left of l.sources||[]){const right=(r.sources||[]).find(s=>s.id===left.id);if(right&&JSON.stringify(left)!==JSON.stringify(right)){for(const source of [left,right])out.researchArchives=PromptCraftLibrary.unionArchives(out.researchArchives,[{reason:'Source version preserved during synchronization',version:1,state:{sources:[clone(source)]}}])}}
+
  return applyTombstones(out)
 }
 function addTombstone(type,item){
@@ -404,7 +398,19 @@ function renderVisualHistory(){
  el.innerHTML=[...byDate.entries()].map(([date,group])=>`<section class="visual-date"><div class="visual-date-marker"><span></span><time>${esc(humanDate(date))}</time></div><div class="visual-date-content">${group.map(({log,img})=>`<article class="visual-card"><button type="button" class="visual-image-button" onclick="openDevelopmentImage('${esc(log.id)}','${esc(img.id)}')"><img data-cloud-image="${esc(img.id)}" alt="${esc(img.caption||img.fileName||'Development image')}" loading="lazy"></button><div class="visual-card-copy"><span class="phase">${esc(log.phase)}</span><h2>${esc(log.title)}</h2><div class="visual-caption"><span class="image-type">${esc(img.imageType||'Process')}</span>${img.caption?`<p>${esc(img.caption)}</p>`:''}</div><button class="ghost" onclick="editLog('${esc(log.id)}');document.querySelector('[data-view=log]').click()">Open log entry</button></div></article>`).join('')}</div></section>`).join('');hydrateImages(el)
 }
 
-function sourceFolders(){return [...new Set([...(state.themes||[]).map(x=>x.theme).filter(Boolean),...(state.sources||[]).map(x=>x.theme).filter(Boolean),...SOURCE_FOLDERS])].sort((a,b)=>a.localeCompare(b))}
+function sourceFolders(){return [...SOURCE_FOLDERS]}
+function renderResearchArchive(){
+ const box=$('#researchArchiveContent');if(!box)return;
+ const archives=state.researchArchives||[];
+ const assignments=[];const seen=new Set();
+ for(const archive of archives){for(const use of archive.state?.paperUses||[]){
+  const key=JSON.stringify(use);if(seen.has(key))continue;seen.add(key);
+  const source=(archive.state.sources||[]).find(s=>s.id===use.sourceId);
+  assignments.push(`<article class="annotation-card"><b>${esc(use.point||'Previous paper use')}</b><p>${esc(source?.title||use.sourceId||'Source')} · ${esc(use.paperSection||'No section')} · ${esc(use.status||'Planned')}</p></article>`);
+ }}
+ box.innerHTML=`<p>${archives.length} preserved record snapshot${archives.length===1?'':'s'} · ${assignments.length} previous paper-use assignment${assignments.length===1?'':'s'}</p>${assignments.join('')}<p class="small">Original source-section assignments and note-level paper-use ideas are included in the download. This export contains records and file locations, not file bytes.</p>`;
+}
+window.exportResearchArchive=()=>downloadText(`PromptCraft_Previous_Research_${today()}.json`,JSON.stringify(state.researchArchives||[],null,2),'application/json');
 function safeHref(url){try{const u=new URL(String(url||''),location.href);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return''}}
 function materialFileId(m){return m?.fileId||m?.id||''}
 function sourceAnnotations(s){return Array.isArray(s.annotations)?s.annotations:[]}
@@ -424,71 +430,11 @@ const researchThumbUrls=new Map();let researchModalObjectUrl='';
 function clearResearchThumbUrls(){for(const u of researchThumbUrls.values())URL.revokeObjectURL(u);researchThumbUrls.clear()}
 async function hydrateResearchThumbnails(root=document){const imgs=[...root.querySelectorAll('img[data-research-thumb]')];await Promise.all(imgs.map(async img=>{const id=img.dataset.researchThumb,m=(state.researchMaterials||[]).find(x=>x.id===id);if(!m)return;try{let url;if(m.storage==='static'&&m.staticPath)url=m.staticPath;else{const blob=await getResearchAttachmentBlob(m);url=URL.createObjectURL(blob);researchThumbUrls.set(id,url)}img.src=url;img.closest('.research-thumb')?.classList.add('loaded')}catch(e){img.closest('.research-thumb')?.classList.add('unavailable');img.alt='Preview unavailable';console.warn('Research thumbnail unavailable',e)}}))}
 function attachmentHtml(m){const image=isImageAttachment(m);return `<div class="source-attachment${image?' source-attachment-image':''}">${image?`<button type="button" class="research-thumb" onclick="previewResearchAttachment('${m.id}')" aria-label="View larger preview of ${esc(m.title||m.fileName||'image')}"><img data-research-thumb="${esc(m.id)}" alt="${esc(m.title||m.fileName||'Research image')}" loading="lazy"><span class="research-thumb-placeholder">Image preview</span></button>`:''}<div class="source-attachment-copy"><span class="phase">${esc(m.materialType||'File')}</span><b>${esc(m.title||m.fileName||'Attachment')}</b>${m.location?`<span class="attachment-location">${esc(m.location)}</span>`:''}${m.notes?`<span class="small">${esc(m.notes)}</span>`:''}<span class="small">${esc(m.fileName||'')}${m.size?' · '+fmtBytes(m.size):''}</span></div><div class="attachment-actions">${image?`<button type="button" class="ghost" onclick="previewResearchAttachment('${m.id}')">View larger</button>`:''}${m.fileName?`<button type="button" class="ghost" onclick="openResearchAttachment('${m.id}')">Open</button><button type="button" class="ghost" onclick="downloadResearchAttachment('${m.id}')">Download</button>`:''}<button type="button" class="ghost" onclick="editSourceAttachment('${m.id}')">Edit</button><button type="button" class="ghost danger" onclick="deleteSourceAttachment('${m.id}')">Delete</button></div></div>`}
-function sourceShortCitation(s){
- if(!s)return'';
- const info=sourceAuthorInfo(s.authors),names=info.surnames;
- const year=String(s.date||'').match(/\b(19|20)\d{2}[a-z]?\b/i)?.[0]||String(s.date||'').trim();
- let who='';if(info.count>=3&&names.length)who=`${names[0]} et al.`;else if(names.length===2)who=`${names[0]} & ${names[1]}`;else if(names.length===1)who=names[0];else who=String(s.authors||'').trim();
- if(!who)return year?`(${year})`:'';
- return year?`${who} (${year})`:who
-}
+function sourceShortCitation(s){return sourceNarrativeCitation(s)}
 
-function sourceAuthorInfo(authorText){
- const raw=String(authorText||'').trim();
- if(!raw)return{surnames:[],count:0,isEtAl:false};
- const isEtAl=/\bet\s+al\.?\b/i.test(raw);
- const text=raw
-  .replace(/\bet\s+al\.?,?/ig,'')
-  .replace(/\s*\((?:19|20)\d{2}[a-z]?\)\s*$/i,'')
-  .replace(/\s+/g,' ')
-  .trim()
-  .replace(/[;,]\s*$/,'');
- const organizationPattern=/\b(university|college|institute|institution|association|organization|organisation|society|council|center|centre|department|agency|foundation|commission|committee|office|ministry|government|academy|school|corporation|company|group|network|digital promise|openai)\b/i;
- const unique=[];
- const add=name=>{name=String(name||'').trim().replace(/^[,&;\s]+|[,&;\s]+$/g,'');if(name&&!unique.includes(name))unique.push(name)};
- const surnameFromPart=part=>{
-  let v=String(part||'').trim().replace(/^&\s*/,'').replace(/[.;,]+$/,'');
-  if(!v)return'';
-  // APA / inverted form: "Surname, A. A." -> Surname.
-  if(v.includes(','))return v.split(',')[0].trim();
-  // Plain personal name: "Gil Schwarts" -> Schwarts.
-  const words=v.split(/\s+/).filter(Boolean);
-  if(words.length<=1)return words[0]||'';
-  const suffixes=new Set(['jr','jr.','sr','sr.','ii','iii','iv']);
-  while(words.length>1&&suffixes.has(words[words.length-1].toLowerCase()))words.pop();
-  const particles=new Set(['da','de','del','della','der','di','dos','du','la','le','van','von','den','ten','ter']);
-  let i=words.length-1;
-  while(i>0&&particles.has(words[i-1].toLowerCase()))i--;
-  return words.slice(i).join(' ');
- };
- // Keep organizations intact rather than treating the final word as a surname.
- if(organizationPattern.test(text)&&!/[;|\n]/.test(text)&&! /\s+(?:&|and)\s+/i.test(text)){
-  return{surnames:[text],count:isEtAl?3:1,isEtAl};
- }
- // Semicolons, pipes, line breaks, ampersands, and "and" are explicit author separators.
- let parts=text.split(/\s*(?:;|\||\n)\s*|\s+(?:&|and)\s+/i).map(x=>x.trim()).filter(Boolean);
- // APA lists often use repeated "Surname, Initials" pairs. Pull each surname from that structure.
- if(parts.length===1&&/,/.test(text)){
-  const commaParts=text.split(/\s*,\s*/).filter(Boolean);
-  // Plain given-name-first list: "John Smith, Jane Doe, Alex Brown".
-  const looksPlainList=commaParts.length>1&&commaParts.every(x=>{
-   const w=x.trim().split(/\s+/).filter(Boolean);
-   return w.length>=2&&!w.every(t=>/^[A-ZÀ-ÖØ-Þ]\.?$/.test(t));
-  });
-  if(looksPlainList)parts=commaParts;
-  else{
-   const apaNames=[];
-   const re=/(?:^|,\s*)([^,]+?)\s*,\s*(?:[A-ZÀ-ÖØ-Þ](?:[A-Za-zÀ-ÖØ-öø-ÿ'’\-]*|\.)?(?:\s*[A-ZÀ-ÖØ-Þ](?:[A-Za-zÀ-ÖØ-öø-ÿ'’\-]*|\.)?)*)\s*(?=,\s*[^,]+\s*,|$)/g;
-   let m;while((m=re.exec(text)))apaNames.push(m[1].trim());
-   if(apaNames.length)parts=apaNames;
-   else if(!/^.+,\s*[A-Z](?:\.|$)/.test(text))parts=commaParts;
-  }
- }
- parts.forEach(p=>add(surnameFromPart(p)));
- return{surnames:unique,count:isEtAl?Math.max(3,unique.length):unique.length,isEtAl};
-}
+function sourceAuthorInfo(authorText){return PromptCraftLibrary.authorInfo(authorText)}
 function sourceAuthorSurnames(authorText){return sourceAuthorInfo(authorText).surnames}
-function sourceCitationYear(s){return String(s?.date||'').match(/\b(19|20)\d{2}[a-z]?\b/i)?.[0]||String(s?.date||'').trim()}
+function sourceCitationYear(s){return String(s?.date||'').match(/\b(19|20)\d{2}[a-z]?\b/i)?.[0]||String(s?.date||'').trim()||'n.d.'}
 function sourceParentheticalCitation(s){
  if(!s)return'';const info=sourceAuthorInfo(s.authors),names=info.surnames,year=sourceCitationYear(s);
  let who='';if(info.count>=3&&names.length)who=`${names[0]} et al.`;else if(names.length===2)who=`${names[0]} & ${names[1]}`;else if(names.length===1)who=names[0];else who=String(s.authors||'').trim();
@@ -521,7 +467,6 @@ window.copyEditorStarter=kind=>copyText(sourceCitationStarter({authors:$('#sourc
 function sourcePaperUseCount(sourceId){return (state.paperUses||[]).filter(x=>x.sourceId===sourceId).length}
 function sourceIsUsedInPaper(source){
  if(!source)return false;
- if(source.status==='Cited')return true;
  return (state.paperUses||[]).some(x=>x.sourceId===source.id&&x.status==='Used');
 }
 function renderSourceNavigation(){
@@ -533,7 +478,7 @@ function renderSourceNavigation(){
  const jump=$('#sourceJump');
  if(jump){const selected=jump.value;jump.innerHTML='<option value="">Choose a source…</option>'+all.map(s=>`<option value="${esc(s.id)}">${esc(s.title||'Untitled source')}</option>`).join('');if(selected&&all.some(s=>s.id===selected))jump.value=selected}
  const form=$('#sourceFormPanel');if(form)form.classList.toggle('source-view-hidden',researchSourceView==='used');
- const paper=$('#paperUseOverview');if(paper)paper.classList.add('source-view-hidden');
+ const paper=$('#paperUseOverview');if(paper)paper.classList.remove('source-view-hidden');
 }
 window.setResearchSourceView=view=>{
  researchSourceView=view==='used'?'used':'all';
@@ -574,7 +519,7 @@ window.setPaperUseStatus=async(id,status)=>{const u=(state.paperUses||[]).find(x
 window.deletePaperUse=async id=>{const u=(state.paperUses||[]).find(x=>x.id===id);if(!u||!confirm('Delete this paper-use card?'))return;addTombstone('paperUses',u);state.paperUses=state.paperUses.filter(x=>x.id!==id);await persist();renderPaperUses();renderSources();toast('Paper-use card deleted')}
 
 function renderSources(){
- refreshSourceOptions();renderSourceNavigation();let items=[...state.sources];if(researchSourceView==='used')items=items.filter(sourceIsUsedInPaper);const q=($('#sourceSearch')?.value||'').toLowerCase().trim(),theme=$('#sourceThemeFilter')?.value||'',status=$('#sourceStatusFilter')?.value||'',type=$('#sourceTypeFilter')?.value||'';
+ refreshSourceOptions();renderSourceNavigation();renderResearchArchive();let items=[...state.sources];if(researchSourceView==='used')items=items.filter(sourceIsUsedInPaper);const q=($('#sourceSearch')?.value||'').toLowerCase().trim(),theme=$('#sourceThemeFilter')?.value||'',status=$('#sourceStatusFilter')?.value||'',type=$('#sourceTypeFilter')?.value||'';
  if(q)items=items.filter(s=>JSON.stringify({...s,attachments:sourceAttachments(s.id)}).toLowerCase().includes(q));if(theme)items=items.filter(s=>s.theme===theme);if(status)items=items.filter(s=>s.status===status);if(type)items=items.filter(s=>(s.sourceType||'Article / PDF')===type);
  items.sort((a,b)=>({High:0,Medium:1,Low:2}[a.priority]??9)-({High:0,Medium:1,Low:2}[b.priority]??9)||(a.title||'').localeCompare(b.title||''));
  $('#sourceCount').textContent=state.sources.length;$('#readCount').textContent=state.sources.filter(x=>['Read','Cited'].includes(x.status)).length;const list=$('#sourceList');if(!items.length){list.innerHTML=`<div class="empty">${researchSourceView==='used'?'No sources are marked as used in the paper yet.':'No matching research sources.'}</div>`;return}
@@ -583,7 +528,7 @@ function renderSources(){
   return;
  }
  const groups=sourceFolders().map(folder=>[folder,items.filter(s=>s.theme===folder)]).filter(([,g])=>g.length);const unfiled=items.filter(s=>!s.theme);if(unfiled.length)groups.push(['Unfiled / Research Artifacts',unfiled]);
- list.innerHTML=groups.map(([folder,group])=>`<section class="source-folder"><div class="source-folder-head"><span class="folder-icon" aria-hidden="true">📁</span><div><h2>${esc(folder)}</h2><div class="meta">${group.length} item${group.length===1?'':'s'}</div></div></div><div class="source-folder-cards">${group.map(s=>{const anns=sourceAnnotations(s),atts=visibleSourceAttachments(s.id),href=safeHref(s.url);return `<article class="card source-card" id="source-card-${esc(s.id)}" tabindex="-1"><div class="card-head"><div><span class="phase">${esc(s.sourceType||'Article / PDF')}</span><h3>${esc(s.title)}</h3><div class="meta">${esc(s.authors||'')}${s.date?' · '+esc(s.date):''}${s.publisher?' · '+esc(s.publisher):''}</div></div><div><span class="status-pill">${esc(s.status||'Not Started')}</span> <span class="status-pill">${esc(s.priority||'Medium')}</span></div></div>${s.apa?`<div class="citation source-citation">${esc(s.apa)}</div><div class="citation-copy-actions"><button type="button" class="ghost" onclick="copySourceInText('${s.id}')">Copy in-text citation</button><button type="button" class="ghost" onclick="copySourceNarrative('${s.id}')">Copy narrative citation</button><details class="citation-starter-menu"><summary>Copy citation starter</summary><div class="citation-starter-options"><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','found')">Found that…</button><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','according')">According to…</button><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','argued')">Argued that…</button></div></details><button type="button" class="ghost" onclick="copySourceApa('${s.id}')">Copy APA reference</button></div>`:''}<div class="source-grid"><div><h4>Key argument</h4><p>${esc(s.keyArgument||'')}</p></div><div><h4>Connection to PromptCraft</h4><p>${esc(s.connection||'')}</p></div><div><h4>Methodology</h4><p>${esc(s.methodology||'')}</p></div><div><h4>Paper connection</h4><p>${esc(s.paperSection||'Not assigned yet')}</p>${href?`<p><a href="${esc(href)}" target="_blank" rel="noopener">Open source link</a></p>`:''}</div></div>${s.tags?.length?`<div class="tags">${s.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}<div class="source-section"><div class="source-section-head"><h4>Documents, diagrams & images</h4><button type="button" class="ghost" onclick="addSourceAttachment('${s.id}')">Add file</button></div>${atts.length?atts.map(attachmentHtml).join(''):'<div class="annotation-empty">No file attached yet. Add the PDF, Word document, diagram, screenshot, table, or other paper material here.</div>'}</div><div class="source-section"><div class="source-section-head"><h4>Notes & annotations</h4><button type="button" onclick="addSourceAnnotation('${s.id}')">Add note</button></div>${anns.length?anns.map(a=>annotationHtml(s,a)).join(''):'<div class="annotation-empty">No notes yet. Page numbers, figures, tables, and section locations can be recorded with each note.</div>'}</div><div class="card-actions"><button type="button" onclick="useSourceInPaper('${s.id}')">Use in paper${sourcePaperUseCount(s.id)?` (${sourcePaperUseCount(s.id)})`:``}</button><button type="button" class="ghost" onclick="editSource('${s.id}')">Edit source</button><button type="button" class="ghost danger" onclick="deleteSource('${s.id}')">Delete</button></div></article>`}).join('')}</div></section>`).join('')
+ list.innerHTML=groups.map(([folder,group])=>`<section class="source-folder"><div class="source-folder-head"><span class="folder-icon" aria-hidden="true">📁</span><div><h2>${esc(folder)}</h2><div class="meta">${group.length} item${group.length===1?'':'s'}</div></div></div><div class="source-folder-cards">${group.map(s=>{const anns=sourceAnnotations(s),atts=visibleSourceAttachments(s.id),href=safeHref(s.url);return `<article class="card source-card" id="source-card-${esc(s.id)}" tabindex="-1"><div class="card-head"><div><span class="phase">${esc(s.sourceType||'Article / PDF')}</span><h3>${esc(s.title)}</h3><div class="meta">${esc(s.authors||'')}${s.date?' · '+esc(s.date):''}${s.publisher?' · '+esc(s.publisher):''}</div></div><div><span class="status-pill">${esc(s.status||'Not Started')}</span> <span class="status-pill">${esc(s.priority||'Medium')}</span></div></div>${(s.citationReview||[]).length?`<div class="citation-review"><b>Citation needs review</b><p>${s.citationReview.map(esc).join('<br>')}</p></div>`:''}${s.apa?`<div class="citation source-citation">${esc(s.apa)}</div><div class="citation-copy-actions"><button type="button" class="ghost" onclick="copySourceInText('${s.id}')">Copy in-text citation</button><button type="button" class="ghost" onclick="copySourceNarrative('${s.id}')">Copy narrative citation</button><details class="citation-starter-menu"><summary>Copy citation starter</summary><div class="citation-starter-options"><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','found')">Found that…</button><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','according')">According to…</button><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','argued')">Argued that…</button></div></details><button type="button" class="ghost" onclick="copySourceApa('${s.id}')">Copy APA reference</button></div>`:''}<div class="source-grid"><div><h4>Key argument</h4><p>${esc(s.keyArgument||'')}</p></div><div><h4>Connection to PromptCraft</h4><p>${esc(s.connection||'')}</p></div><div><h4>Methodology</h4><p>${esc(s.methodology||'')}</p></div><div><h4>Paper connection</h4><p>${esc(s.paperSection||'Not assigned yet')}</p>${href?`<p><a href="${esc(href)}" target="_blank" rel="noopener">Open source link</a></p>`:''}</div></div>${s.tags?.length?`<div class="tags">${s.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}<div class="source-section"><div class="source-section-head"><h4>Documents, diagrams & images</h4><button type="button" class="ghost" onclick="addSourceAttachment('${s.id}')">Add file</button></div>${atts.length?atts.map(attachmentHtml).join(''):'<div class="annotation-empty">No file attached yet. Add the PDF, Word document, diagram, screenshot, table, or other paper material here.</div>'}</div><div class="source-section"><div class="source-section-head"><h4>Notes & annotations</h4><button type="button" onclick="addSourceAnnotation('${s.id}')">Add note</button></div>${anns.length?anns.map(a=>annotationHtml(s,a)).join(''):'<div class="annotation-empty">No notes yet. Page numbers, figures, tables, and section locations can be recorded with each note.</div>'}</div><div class="card-actions"><button type="button" onclick="useSourceInPaper('${s.id}')">Use in paper${sourcePaperUseCount(s.id)?` (${sourcePaperUseCount(s.id)})`:``}</button><button type="button" class="ghost" onclick="editSource('${s.id}')">Edit source</button><button type="button" class="ghost danger" onclick="deleteSource('${s.id}')">Delete</button></div></article>`}).join('')}</div></section>`).join('')
  clearResearchThumbUrls();hydrateResearchThumbnails(list);
 }
 function sourceEditorId(){return $('#sourceId')?.value||''}
@@ -607,7 +552,7 @@ function returnToSourceEditorOrCard(sourceId,anchorId){
 }
 function citationImportString(v){
  if(v===undefined||v===null)return'';
- if(Array.isArray(v))return v.join(', ');
+ if(Array.isArray(v))return v.map(item=>typeof item==='object'&&item?item.literal||item.name||[item.given,item.family].filter(Boolean).join(' '):String(item)).filter(Boolean).join('; ');
  if(typeof v==='object')return JSON.stringify(v);
  return String(v).trim()
 }
@@ -744,7 +689,7 @@ function renderPlans(){
 
  // Research focus remains available as a quiet reference because the Research Library uses it,
  // but it is no longer a separate planning workflow.
- if(themes)themes.innerHTML=(state.themes||[]).length?'<div class="focus-reference">'+state.themes.map(t=>`<span class="tag" title="${esc(t.question||'')}">${esc(t.theme)}</span>`).join('')+'</div>':'<div class="empty compact-empty">No research focus areas saved.</div>';
+ if(themes)themes.innerHTML=SOURCE_FOLDERS.length?'<div class="focus-reference">'+SOURCE_FOLDERS.map(name=>`<span class="tag">${esc(name)}</span>`).join('')+'</div>':'<div class="empty compact-empty">No research focus areas saved.</div>';
 
  const byChapter=new Map(),groups=[];
  for(const o of outlineItems){const key=o.chapter||'Other';if(!byChapter.has(key)){const g={chapter:key,items:[]};byChapter.set(key,g);groups.push(g)}byChapter.get(key).items.push(o)}
@@ -973,7 +918,7 @@ $('#sourceForm').onsubmit=async e=>{
  if(!title){if(!existingId)$('#sourceId').value='';return toast('Add an article/source name or choose a document first.')}
  setSourceSaveState(true,file?'Saving source and attaching document…':'Saving source…');
  toast('Saving source…');
- const obj={...(existing||{}),id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,sourceType:$('#sourceType').value,title,authors:$('#sourceAuthors').value.trim(),date:$('#sourceDate').value.trim(),publisher:$('#sourcePublisher').value.trim(),apa:$('#sourceApa').value.trim(),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,paperSection:$('#sourcePaperSection').value.trim(),url:normalizeSourceUrl($('#sourceUrl').value),tags:$('#sourceTags').value.split(',').map(x=>x.trim()).filter(Boolean),archiveFile:$('#sourceArchive').value.trim(),annotations:[...(existing?.annotations||[]),...pendingImportedAnnotations.filter(a=>!(existing?.annotations||[]).some(x=>`${x.location||''}|${x.text||''}`===`${a.location||''}|${a.text||''}`))],created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const obj={...(existing||{}),libraryCleanupVersion:1,id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,sourceType:$('#sourceType').value,title,authors:$('#sourceAuthors').value.trim(),date:$('#sourceDate').value.trim(),publisher:$('#sourcePublisher').value.trim(),apa:$('#sourceApa').value.trim(),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,paperSection:$('#sourcePaperSection').value.trim(),url:normalizeSourceUrl($('#sourceUrl').value),tags:$('#sourceTags').value.split(',').map(x=>x.trim()).filter(Boolean),archiveFile:$('#sourceArchive').value.trim(),annotations:[...(existing?.annotations||[]),...pendingImportedAnnotations.filter(a=>!(existing?.annotations||[]).some(x=>`${x.location||''}|${x.text||''}`===`${a.location||''}|${a.text||''}`))],created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};
  clearTombstonesFor('sources',obj);
  const i=state.sources.findIndex(x=>x.id===id);if(i>=0)state.sources[i]=obj;else state.sources.push(obj);
  const currentPrimary=(state.researchMaterials||[]).find(m=>m.sourceId===id&&m.role==='primary');

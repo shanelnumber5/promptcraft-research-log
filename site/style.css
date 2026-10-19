@@ -180,12 +180,12 @@ button:active:not(:disabled){transform:translateY(1px)}
 @media(max-width:620px){.annotation-visual{grid-template-columns:1fr}.annotation-visual-thumb{width:100%;max-width:320px}.paper-use-choice-content,.paper-use-evidence-item{grid-template-columns:1fr}.annotation-visual.compact .annotation-visual-thumb{width:140px}}
 
 .citation-starter-menu{position:relative;display:inline-block}
-.citation-starter-menu>summary{list-style:none;cursor:pointer;border:1px solid #b9c6d6;border-radius:6px;padding:6px 9px;font-size:11px;font-weight:700;background:#fff;color:#153b63;user-select:none}
+.citation-starter-menu>summary{list-style:none;cursor:pointer;border:1px solid #92928b;border-radius:6px;padding:6px 9px;font-size:11px;font-weight:700;background:#252523;color:#f1f1ed;user-select:none}
 .citation-starter-menu>summary::-webkit-details-marker{display:none}
 .citation-starter-menu>summary::after{content:" ▾";font-size:10px}
 .citation-starter-menu[open]>summary::after{content:" ▴"}
-.citation-starter-options{position:absolute;z-index:25;top:calc(100% + 5px);left:0;min-width:165px;padding:7px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.16);display:grid;gap:5px}
-.citation-starter-options button{width:100%;text-align:left;margin:0}
+.citation-starter-options{position:absolute;z-index:25;top:calc(100% + 5px);left:0;min-width:165px;padding:7px;background:#252523;color:#f1f1ed;border:1px solid #92928b;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.3);display:grid;gap:5px}
+.citation-starter-options button.ghost{width:100%;text-align:left;margin:0;background:#252523;color:#f1f1ed;border-color:#92928b}
 @media(max-width:620px){.citation-starter-menu{flex:1 1 100%}.citation-starter-menu>summary{text-align:center}.citation-starter-options{position:static;margin-top:5px;box-shadow:none}}
 
 /* Keep content within the window, including long references and filenames. */
@@ -204,8 +204,6 @@ button:active:not(:disabled){transform:translateY(1px)}
 .source-jump-label{min-width:0}
 .source-jump-label select{min-width:0}
 .source-auto-intake-head .status-pill{flex-shrink:0}
-.citation-starter-menu>summary{background:var(--panel);color:var(--text);border-color:var(--line)}
-.citation-starter-options{background:var(--panel);border-color:var(--line)}
 .toast{max-width:calc(100vw - 40px);overflow-wrap:anywhere}
 @media(max-width:620px){
   .cloud-panel{grid-template-columns:minmax(0,1fr)}

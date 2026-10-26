@@ -8,6 +8,18 @@ const uuid=()=>crypto.randomUUID?crypto.randomUUID():'id-'+Date.now()+'-'+Math.r
 const today=()=>new Date().toISOString().slice(0,10);
 const humanDate=d=>{if(!d)return''; if(/^\d{4}-\d{2}-\d{2}$/.test(d)){const x=new Date(d+'T12:00:00');return x.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})} return d};
 const isoDate=d=>{if(/^\d{4}-\d{2}-\d{2}$/.test(d))return d; const x=new Date(d); return isNaN(x)?today():x.toISOString().slice(0,10)};
+const logDateValue=d=>{
+ if(!d)return null;
+ if(/^\d{4}-\d{2}-\d{2}$/.test(d)){const [y,m,day]=d.split('-').map(Number);return Date.UTC(y,m-1,day)}
+ const ms=Date.parse(d);return Number.isNaN(ms)?null:ms;
+};
+const compareLogDates=(a,b,newestFirst=true)=>{
+ const av=logDateValue(a?.date),bv=logDateValue(b?.date);
+ if(av===null&&bv===null)return 0;
+ if(av===null)return 1;
+ if(bv===null)return -1;
+ return newestFirst?bv-av:av-bv;
+};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtBytes=n=>n<1024?`${n} B`:n<1048576?`${(n/1024).toFixed(1)} KB`:`${(n/1048576).toFixed(1)} MB`;
 const STORAGE_KEY='promptcraft-hub-state-v1';
@@ -385,13 +397,13 @@ window.openDevelopmentImage=async(entryId,imageId)=>{const found=findImageMeta(i
 function closeImageModal(){$('#imageModal').classList.add('hidden');$('#imageModalImg').removeAttribute('src');if(typeof researchModalObjectUrl!=='undefined'&&researchModalObjectUrl){URL.revokeObjectURL(researchModalObjectUrl);researchModalObjectUrl=''}document.body.classList.remove('modal-open')}
 function render(){initSelects();renderLogs();renderVisualHistory();renderSources();renderPaperUses();renderPlans();renderBackups();renderPaperBackups();setStorageBadge()}
 function logImagesHtml(e){const imgs=Array.isArray(e.images)?e.images:[];if(!imgs.length)return'';return `<div class="dev-image-gallery">${imgs.map(img=>imageMetaHtml(img,e.id,false)).join('')}</div>`}
-function renderLogs(){let items=[...state.logs].sort((a,b)=>(b.date||'').localeCompare(a.date||''));const q=$('#logSearch').value.toLowerCase().trim(),phase=$('#logFilter').value;if(q)items=items.filter(e=>JSON.stringify(e).toLowerCase().includes(q));if(phase)items=items.filter(e=>e.phase===phase);$('#logCount').textContent=state.logs.length;$('#phaseCount').textContent=new Set(state.logs.map(e=>e.phase)).size;$('#logList').innerHTML=items.length?items.map(e=>`<article class="card"><div class="card-head"><div><span class="phase">${esc(e.phase)}</span><h3>${esc(e.title)}</h3><div class="meta">${esc(humanDate(e.date))}</div></div></div><div class="card-body"><div><h4>What happened</h4><p>${esc(e.what)}</p></div><div><h4>Why / rationale & reflection</h4><p>${esc(e.why)}</p></div></div>${logImagesHtml(e)}<div class="tags">${(e.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="card-actions"><button class="ghost" onclick="editLog('${e.id}')">Edit</button><button class="ghost danger" onclick="deleteLog('${e.id}')">Delete</button></div></article>`).join(''):'<div class="empty">No matching development entries.</div>';hydrateImages($('#logList'))}
+function renderLogs(){let items=[...state.logs].sort((a,b)=>compareLogDates(a,b,true));const q=$('#logSearch').value.toLowerCase().trim(),phase=$('#logFilter').value;if(q)items=items.filter(e=>JSON.stringify(e).toLowerCase().includes(q));if(phase)items=items.filter(e=>e.phase===phase);$('#logCount').textContent=state.logs.length;$('#phaseCount').textContent=new Set(state.logs.map(e=>e.phase)).size;$('#logList').innerHTML=items.length?items.map(e=>`<article class="card"><div class="card-head"><div><span class="phase">${esc(e.phase)}</span><h3>${esc(e.title)}</h3><div class="meta">${esc(humanDate(e.date))}</div></div></div><div class="card-body"><div><h4>What happened</h4><p>${esc(e.what)}</p></div><div><h4>Why / rationale & reflection</h4><p>${esc(e.why)}</p></div></div>${logImagesHtml(e)}<div class="tags">${(e.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="card-actions"><button class="ghost" onclick="editLog('${e.id}')">Edit</button><button class="ghost danger" onclick="deleteLog('${e.id}')">Delete</button></div></article>`).join(''):'<div class="empty">No matching development entries.</div>';hydrateImages($('#logList'))}
 function clearLog(){revokePendingPreviews();editingLogImages=[];pendingLogImages=[];Object.assign($('#logForm'),{});$('#logId').value='';$('#logDate').value=today();$('#logPhase').value='Iteration';$('#logTitle').value='';$('#logWhat').value='';$('#logWhy').value='';$('#logTags').value='';$('#logImages').value='';$('#logFormTitle').textContent='Add new entry';renderLogImageEditor()}
 window.editLog=id=>{const e=state.logs.find(x=>x.id===id);if(!e)return;revokePendingPreviews();pendingLogImages=[];editingLogImages=clone(e.images||[]);$('#logId').value=e.id;$('#logDate').value=isoDate(e.date);$('#logPhase').value=e.phase;$('#logTitle').value=e.title;$('#logWhat').value=e.what;$('#logWhy').value=e.why;$('#logTags').value=(e.tags||[]).join(', ');$('#logImages').value='';$('#logFormTitle').textContent='Edit entry';renderLogImageEditor();scrollTo({top:120,behavior:'smooth'})}
 window.deleteLog=async id=>{if(!confirm('Delete this development log entry?'))return;const item=state.logs.find(x=>x.id===id);if(!item)return;const imgs=item.images||[];if(imgs.length&&!adminKey)return toast('Connect cloud storage before deleting an entry with images.');try{for(const img of imgs)await deleteDevelopmentImageBlob(img)}catch(e){console.error(e);return toast('Image cleanup failed; entry was not deleted.')}addTombstone('logs',item);state.logs=state.logs.filter(x=>x.id!==id);await persist();renderLogs();renderVisualHistory();toast('Entry deleted')}
 function renderVisualHistory(){
  const rows=[];for(const log of state.logs||[])for(const img of log.images||[])if(img.includeInHistory)rows.push({log,img});
- rows.sort((a,b)=>(b.log.date||'').localeCompare(a.log.date||'')||(b.img.created||'').localeCompare(a.img.created||''));
+ rows.sort((a,b)=>compareLogDates(a.log,b.log,true)||(b.img.created||'').localeCompare(a.img.created||''));
  $('#visualCount').textContent=rows.length;$('#visualEntryCount').textContent=new Set(rows.map(x=>x.log.id)).size;
  const el=$('#visualTimeline');if(!rows.length){el.innerHTML='<div class="empty">No images have been selected for the Visual History yet. Attach images to Development Log entries and check “Include in Visual History.”</div>';return}
  const byDate=new Map();for(const row of rows){const d=row.log.date||'';if(!byDate.has(d))byDate.set(d,[]);byDate.get(d).push(row)}
@@ -747,7 +759,7 @@ window.deletePaperBackup=async id=>{const b=(state.paperBackups||[]).find(x=>x.i
 
 function downloadText(name,text,type='text/plain'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function restoreBaseLogs(){const seed=normalizeSeed(window.PROMPTCRAFT_SEED);const existing=new Set((state.logs||[]).map(e=>`${e.date}|${e.title}`));let added=0;for(const e of seed.logs){const k=`${e.date}|${e.title}`;if(!existing.has(k)){state.logs.push(clone(e));existing.add(k);added++}}persist().then(()=>{renderLogs();toast(added?`Restored ${added} missing base entr${added===1?'y':'ies'}`:'All 26 base entries are already present')})}
-function exportLog(){const out=[`PromptCraft Research & Development Log`,`Exported: ${new Date().toLocaleString()}`,`${state.logs.length} entries`,''];[...state.logs].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>out.push(`${humanDate(e.date)} | ${e.phase}\n${e.title}\n\nWHAT HAPPENED\n${e.what}\n\nWHY / RATIONALE & REFLECTION\n${e.why}\n\nTags: ${(e.tags||[]).join(' · ')}\n\n${'='.repeat(70)}\n`));downloadText(`PromptCraft_Research_Log_${today()}.txt`,out.join('\n'))}
+function exportLog(){const out=[`PromptCraft Research & Development Log`,`Exported: ${new Date().toLocaleString()}`,`${state.logs.length} entries`,''];[...state.logs].sort((a,b)=>compareLogDates(a,b,false)).forEach(e=>out.push(`${humanDate(e.date)} | ${e.phase}\n${e.title}\n\nWHAT HAPPENED\n${e.what}\n\nWHY / RATIONALE & REFLECTION\n${e.why}\n\nTags: ${(e.tags||[]).join(' · ')}\n\n${'='.repeat(70)}\n`));downloadText(`PromptCraft_Research_Log_${today()}.txt`,out.join('\n'))}
 function exportAll(){downloadText(`PromptCraft_Hub_Archive_${today()}.json`,JSON.stringify(state,null,2),'application/json')}
 
 async function uploadBlobAsCloudBackup(b,blob){

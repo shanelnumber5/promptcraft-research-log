@@ -1,6 +1,27 @@
 window.PROMPTCRAFT_SEED = {
   "logs": [
     {
+      "id": "log-2026-11-18-openai-babbage-review",
+      "date": "2026-11-18",
+      "phase": "Reflection",
+      "title": "OpenAI Babbage API integration reviewed and retained",
+      "what": "Reviewed the active PromptCraft game repository (shanelnumber5/promptcraft-next-main) to confirm Babbage's AI provider and server-side integration. The Netlify function netlify/functions/babbage.js identifies OpenAI as the provider, calls the OpenAI Responses API, reads OPENAI_API_KEY from server-side environment variables, and uses the configurable OPENAI_MODEL value with a default of gpt-5.6-terra. The function identifies proxy version V373. No provider migration or model change was made. The deployed API key, runtime model availability, and live response performance were not tested during this review.",
+      "why": "The review established that continuing to use OpenAI does not require replacing PromptCraft's existing AI architecture. Keeping the key server-side avoids exposing credentials in the browser and maintains separation between participant-facing gameplay and external AI services. Before changing providers, the project should assess feedback quality, response speed, cost, reliability, and consistency. For research documentation, record the model and prompt versions and distinguish live AI responses from fallback output so changes in feedback are not mistaken for changes in educator reasoning.",
+      "tags": [
+        "AI architecture",
+        "OpenAI",
+        "Responses API",
+        "Babbage",
+        "Netlify",
+        "serverless proxy",
+        "model configuration",
+        "research instrumentation",
+        "provider review",
+        "no migration"
+      ],
+      "images": []
+    },
+    {
       "phase": "Conceptualization",
       "date": "April 24, 2026",
       "title": "PromptCraft concept originated",

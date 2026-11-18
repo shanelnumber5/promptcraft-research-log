@@ -391,7 +391,26 @@ async function getDevelopmentImageUrl(img){
 function findImageMeta(id){for(const log of state.logs||[]){const img=(log.images||[]).find(x=>x.id===id);if(img)return {img,log}}return null}
 async function hydrateImages(root=document){
  const nodes=[...root.querySelectorAll('img[data-cloud-image]')];
- await Promise.all(nodes.map(async imgEl=>{const id=imgEl.dataset.cloudImage,found=findImageMeta(id);if(!found)return;try{imgEl.src=await getDevelopmentImageUrl(found.img)}catch(e){imgEl.alt='Image unavailable';console.warn('Image load failed',id,e)}}));
+ const load=async imgEl=>{
+   if(!imgEl.isConnected)return;
+   const id=imgEl.dataset.cloudImage,found=findImageMeta(id);
+   if(!found)return;
+   try{imgEl.src=await getDevelopmentImageUrl(found.img)}
+   catch(e){imgEl.alt='Image unavailable';console.warn('Image load failed',id,e)}
+ };
+ // The Development Log can contain dozens of screenshots. Do not download all of
+ // them just to display the first few dated entries.
+ if(root.id==='logList'&&typeof IntersectionObserver!=='undefined'){
+   const observer=new IntersectionObserver(entries=>{
+     for(const entry of entries)if(entry.isIntersecting){
+       observer.unobserve(entry.target);
+       void load(entry.target);
+     }
+   },{rootMargin:'300px 0px'});
+   nodes.forEach(img=>observer.observe(img));
+   return;
+ }
+ await Promise.all(nodes.map(load));
 }
 window.openDevelopmentImage=async(entryId,imageId)=>{const found=findImageMeta(imageId);if(!found)return;const modal=$('#imageModal'),img=$('#imageModalImg'),cap=$('#imageModalCaption');img.src=await getDevelopmentImageUrl(found.img);img.alt=found.img.caption||found.img.fileName||'Development image';cap.textContent=[found.img.imageType,found.img.caption,found.log.title].filter(Boolean).join(' · ');modal.classList.remove('hidden');document.body.classList.add('modal-open')};
 function closeImageModal(){$('#imageModal').classList.add('hidden');$('#imageModalImg').removeAttribute('src');if(typeof researchModalObjectUrl!=='undefined'&&researchModalObjectUrl){URL.revokeObjectURL(researchModalObjectUrl);researchModalObjectUrl=''}document.body.classList.remove('modal-open')}

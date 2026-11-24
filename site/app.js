@@ -26,7 +26,6 @@ const STORAGE_KEY='promptcraft-hub-state-v1';
 const ADMIN_KEY_STORAGE='pc-admin-key';
 const UNSYNCED_KEY='pc-cloud-unsynced';
 const RESEARCH_PLAN_VERSION=3;
-const PAPER_USE_VERSION=2;
 let state=loadLocal();
 let cloud=false;
 let syncing=false;
@@ -112,66 +111,6 @@ function applyResearchPlanMigration(x,seed){
  }
  return x
 }
-
-const PAPER_SECTION_ALIASES={
- 'chapter 1: introduction and context · introduction and problem context':'Chapter 1: Introduction · Background and Context',
- 'introduction and problem context':'Chapter 1: Introduction · Background and Context',
- 'chapter 1: introduction and context · purpose of the study':'Chapter 1: Introduction · Purpose of the Study',
- 'purpose of the study':'Chapter 1: Introduction · Purpose of the Study',
- 'chapter 1: introduction and context · research questions':'Chapter 1: Introduction · Research Questions',
- 'research questions':'Chapter 1: Introduction · Research Questions',
- 'chapter 1: introduction and context · description and design logic of promptcraft':'Chapter 3: Methodology and Data Acquisition · Research Setting and PromptCraft Experience',
- 'description and design logic of promptcraft':'Chapter 3: Methodology and Data Acquisition · Research Setting and PromptCraft Experience',
- 'chapter 1: introduction and context · positionality and professional context':'Chapter 3: Methodology and Data Acquisition · Researcher Role and Positionality',
- 'positionality and professional context':'Chapter 3: Methodology and Data Acquisition · Researcher Role and Positionality',
- 'chapter 2: review of literature · educator ai literacy and critical evaluation':'Chapter 2: Review of Literature · Critical AI Collaboration and Educator Agency',
- 'educator ai literacy and critical evaluation':'Chapter 2: Review of Literature · Critical AI Collaboration and Educator Agency',
- 'chapter 2: review of literature · professional judgment, agency, and human-ai decision making':'Chapter 2: Review of Literature · Instructional-Design Reasoning and Professional Judgment',
- 'professional judgment, agency, and human-ai decision making':'Chapter 2: Review of Literature · Instructional-Design Reasoning and Professional Judgment',
- 'chapter 2: review of literature · educator professional development and adult learning':'Chapter 2: Review of Literature · Reflection, Professional Learning, and Intended Transfer',
- 'educator professional development and adult learning':'Chapter 2: Review of Literature · Reflection, Professional Learning, and Intended Transfer',
- 'chapter 2: review of literature · scenario-based, experiential, and game-based learning':'Chapter 2: Review of Literature · Scenario-Based Learning and Purposeful Creativity',
- 'scenario-based, experiential, and game-based learning':'Chapter 2: Review of Literature · Scenario-Based Learning and Purposeful Creativity',
- 'chapter 2: review of literature · metacognition, reflection, and transfer':'Chapter 2: Review of Literature · Reflection, Professional Learning, and Intended Transfer',
- 'metacognition, reflection, and transfer':'Chapter 2: Review of Literature · Reflection, Professional Learning, and Intended Transfer',
- 'chapter 2: review of literature · instructional design, accessibility, and oscqr':'Chapter 2: Review of Literature · Meaningful Online Learning, Instructor Interaction, and Accessibility',
- 'instructional design, accessibility, and oscqr':'Chapter 2: Review of Literature · Meaningful Online Learning, Instructor Interaction, and Accessibility',
- 'chapter 3: methodology · research design':'Chapter 3: Methodology and Data Acquisition · Research Design and Rationale',
- 'research design':'Chapter 3: Methodology and Data Acquisition · Research Design and Rationale',
- 'chapter 3: methodology · participants, recruitment, and study setting':'Chapter 3: Methodology and Data Acquisition · Participants and Recruitment',
- 'participants, recruitment, and study setting':'Chapter 3: Methodology and Data Acquisition · Participants and Recruitment',
- 'chapter 3: methodology · intervention and duration':'Chapter 3: Methodology and Data Acquisition · Research Procedures',
- 'intervention and duration':'Chapter 3: Methodology and Data Acquisition · Research Procedures',
- 'chapter 3: methodology · data sources and measures':'Chapter 3: Methodology and Data Acquisition · Data Collection Instruments',
- 'data sources and measures':'Chapter 3: Methodology and Data Acquisition · Data Collection Instruments',
- 'chapter 3: methodology · application data and research log':'Chapter 3: Methodology and Data Acquisition · Supplementary Interaction Data',
- 'application data and research log':'Chapter 3: Methodology and Data Acquisition · Supplementary Interaction Data',
- 'chapter 3: methodology · reliability, validity, and measurement evidence':'Chapter 3: Methodology and Data Acquisition · Trustworthiness',
- 'reliability, validity, and measurement evidence':'Chapter 3: Methodology and Data Acquisition · Trustworthiness',
- 'chapter 3: methodology · ethical considerations and data management':'Chapter 3: Methodology and Data Acquisition · Ethical Considerations and Data Management',
- 'ethical considerations and data management':'Chapter 3: Methodology and Data Acquisition · Ethical Considerations and Data Management',
- 'chapter 4: data analysis plan · qualitative analysis':'Chapter 3: Methodology and Data Acquisition · Data Analysis',
- 'qualitative analysis':'Chapter 3: Methodology and Data Acquisition · Data Analysis',
- 'chapter 5: anticipated significance, limitations, and dissemination · limitations':'Chapter 3: Methodology and Data Acquisition · Study Limitations',
- 'limitations':'Chapter 3: Methodology and Data Acquisition · Study Limitations'
-};
-function canonicalPaperSection(value='',outline=null){
- const raw=String(value||'').trim();if(!raw)return'';
- const current=Array.isArray(outline)?[...new Set(outline.map(o=>[o.chapter,o.section].filter(Boolean).join(' · ')).filter(Boolean))]:paperSectionOptions();
- const exact=current.find(x=>x===raw);if(exact)return exact;
- return PAPER_SECTION_ALIASES[raw.toLowerCase()]||raw
-}
-function applyPaperUseMigration(x){
- x.meta=(x.meta&&typeof x.meta==='object')?x.meta:{};
- const current=Number(x.meta.paperUseVersion||0);
- if(current<PAPER_USE_VERSION){
-  for(const u of x.paperUses||[]){const before=String(u.paperSection||'').trim(),after=canonicalPaperSection(before,x.outline);if(after&&after!==before){u.legacyPaperSection=u.legacyPaperSection||before;u.paperSection=after}}
-  for(const src of x.sources||[]){const before=String(src.paperSection||'').trim(),after=canonicalPaperSection(before,x.outline);if(after&&after!==before){src.legacyPaperSection=src.legacyPaperSection||before;src.paperSection=after}}
-  x.meta.paperUseVersion=PAPER_USE_VERSION;x.meta.paperUseUpdated='2026-11-24';
- }
- return x
-}
-
 function normalizeResearchLibrary(x){
  const themeMap={
   'AI Literacy & Prompt Engineering':'Educator AI Literacy & Critical Evaluation',
@@ -200,7 +139,7 @@ function mergeBaseData(saved){
  if(!Array.isArray(x.paperUses))x.paperUses=[];
  x.researchMaterials=mergeCollection(seed.researchMaterials||[],x.researchMaterials||[],m=>m.id||`${String(m.title||'').trim().toLowerCase()}|${String(m.fileName||'').trim().toLowerCase()}`);
  normalizeResearchLibrary(x);
- return applyTombstones(applyPaperUseMigration(applyResearchPlanMigration(PromptCraftLibrary.migrate(x),seed)))
+ return applyTombstones(applyResearchPlanMigration(PromptCraftLibrary.migrate(x),seed))
 }
 function loadLocal(){const raw=localStorage.getItem(STORAGE_KEY);if(raw){try{return mergeBaseData(JSON.parse(raw))}catch(e){throw new Error('Saved research data could not be loaded. It has not been replaced. '+e.message)}}return mergeBaseData(window.PROMPTCRAFT_SEED)}
 function persistLocal(){
@@ -641,14 +580,10 @@ function paperUseEvidenceHtml(use){
 }
 function renderPaperUses(){
  const list=$('#paperUseList');if(!list)return;
- const statusOrder={Planned:0,Drafted:1,Used:2},sections=paperSectionOptions(),sectionOrder=new Map(sections.map((x,i)=>[x,i]));
- const uses=(state.paperUses||[]).slice().sort((a,b)=>{const as=canonicalPaperSection(a.paperSection),bs=canonicalPaperSection(b.paperSection),ai=sectionOrder.has(as)?sectionOrder.get(as):9999,bi=sectionOrder.has(bs)?sectionOrder.get(bs):9999;return ai-bi||(statusOrder[a.status]??9)-(statusOrder[b.status]??9)||String(a.point||'').localeCompare(String(b.point||''))});
- $('#paperUseCount').textContent=`${uses.length} connected`;
- if(!uses.length){list.innerHTML='<div class="annotation-empty">No sources are connected to the manuscript yet. Open a source and choose <b>Use in paper</b> when you know the claim, section, or methodological decision it supports.</div>';return}
- const grouped=new Map();
- for(const u of uses){const sec=canonicalPaperSection(u.paperSection)||'Needs paper-section assignment';if(!grouped.has(sec))grouped.set(sec,[]);grouped.get(sec).push(u)}
- const card=u=>{const src=state.sources.find(x=>x.id===u.sourceId);if(!src)return'';const pages=[...new Set((src.annotations||[]).filter(a=>(u.annotationIds||[]).includes(a.id)).map(a=>a.location).filter(Boolean))],section=canonicalPaperSection(u.paperSection),stale=!sectionOrder.has(section);return `<article class="paper-use-card" id="paper-use-${esc(u.id)}"><div class="paper-use-head"><div>${stale?'<span class="status-pill paper-use-needs-review">Needs reassignment</span>':''}<h3>${esc(u.point||'Paper use')}</h3><div class="meta">${esc(src.title||'Untitled source')}${sourceShortCitation(src)?' · '+esc(sourceShortCitation(src)):''}${pages.length?' · '+esc(pages.join(', ')):''}</div></div><select aria-label="Paper use status" onchange="setPaperUseStatus('${u.id}',this.value)"><option${u.status==='Planned'?' selected':''}>Planned</option><option${u.status==='Drafted'?' selected':''}>Drafted</option><option${u.status==='Used'?' selected':''}>Used</option></select></div>${sourceGeneratedApa(src)?`<div class="citation paper-use-citation">${sourceGeneratedApaHtml(src)}</div>`:''}${paperUseEvidenceHtml(u)}<div class="card-actions"><button type="button" class="ghost" onclick="editPaperUse('${u.id}')">Edit</button><button type="button" class="ghost" onclick="editSource('${src.id}')">Open source</button><button type="button" class="ghost danger" onclick="deletePaperUse('${u.id}')">Delete</button></div></article>`};
- list.innerHTML=[...grouped.entries()].map(([section,items])=>{const current=sectionOrder.has(section);return `<section class="paper-use-group${current?'':' paper-use-group-stale'}"><div class="paper-use-group-head"><div><h3>${esc(section)}</h3>${current?'':'<p class="small">This section is not in the current paper plan. Reassign these cards when you review them.</p>'}</div><span class="status-pill">${items.length} source use${items.length===1?'':'s'}</span></div><div class="paper-use-group-cards">${items.map(card).join('')}</div></section>`}).join('');queueMicrotask(()=>hydrateResearchThumbnails(list))
+ const uses=(state.paperUses||[]).slice().sort((a,b)=>{const order={Planned:0,Drafted:1,Used:2};return (order[a.status]??9)-(order[b.status]??9)||String(a.paperSection||'').localeCompare(String(b.paperSection||''))});
+ const open=uses.filter(x=>x.status!=='Used').length;if($('#paperUseCount'))$('#paperUseCount').textContent=`${open} active`;
+ if(!uses.length){list.innerHTML='<div class="annotation-empty">No paper-use cards yet. Open a source and choose <b>Use in paper</b> to connect evidence to the manuscript.</div>';return}
+ list.innerHTML=uses.map(u=>{const s=state.sources.find(x=>x.id===u.sourceId);if(!s)return'';const pages=[...new Set((s.annotations||[]).filter(a=>(u.annotationIds||[]).includes(a.id)).map(a=>a.location).filter(Boolean))];return `<article class="paper-use-card" id="paper-use-${esc(u.id)}"><div class="paper-use-head"><div><span class="phase">${esc(u.paperSection||'Paper section not assigned')}</span><h3>${esc(u.point||'Paper use')}</h3><div class="meta">${esc(s.title||'Untitled source')}${sourceShortCitation(s)?' · '+esc(sourceShortCitation(s)):''}${pages.length?' · '+esc(pages.join(', ')):''}</div></div><select aria-label="Paper use status" onchange="setPaperUseStatus('${u.id}',this.value)"><option${u.status==='Planned'?' selected':''}>Planned</option><option${u.status==='Drafted'?' selected':''}>Drafted</option><option${u.status==='Used'?' selected':''}>Used</option></select></div>${sourceGeneratedApa(s)?`<div class="citation paper-use-citation">${sourceGeneratedApaHtml(s)}</div>`:''}${paperUseEvidenceHtml(u)}<div class="card-actions"><button type="button" class="ghost" onclick="editPaperUse('${u.id}')">Edit</button><button type="button" class="ghost" onclick="editSource('${s.id}')">Open source</button><button type="button" class="ghost danger" onclick="deletePaperUse('${u.id}')">Delete</button></div></article>`}).join('');queueMicrotask(()=>hydrateResearchThumbnails(list))
 }
 function paperSectionOptions(){return [...new Set((state.outline||[]).map(o=>[o.chapter,o.section].filter(Boolean).join(' · ')).filter(Boolean))]}
 function fillPaperUseSections(selected=''){

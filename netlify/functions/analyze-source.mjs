@@ -107,7 +107,11 @@ async function readCloudFile(file) {
 }
 
 async function extractPdf(buffer) {
-  const mod = await import("pdf-parse");
+  // pdf-parse 1.1.1's top-level index.js contains a debug/test branch that can
+  // attempt to open ./test/data/05-versions-space.pdf in serverless/ESM builds.
+  // Import the production parser directly so Netlify parses the uploaded buffer
+  // instead of executing the package test harness.
+  const mod = await import("pdf-parse/lib/pdf-parse.js");
   const pdf = mod.default || mod;
   let pageNo = 0;
   const pagerender = async pageData => {

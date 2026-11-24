@@ -1,6 +1,64 @@
 window.PROMPTCRAFT_SEED = {
   "logs": [
     {
+      "id": "log-2026-11-18-github-snapshots",
+      "date": "2026-11-18",
+      "phase": "Prototype",
+      "title": "Current game and Research Hub GitHub recovery snapshots created",
+      "what": "Created two point-in-time recovery references as separate GitHub branches on November 18, 2026. The active PromptCraft game repository (shanelnumber5/promptcraft-next-main) was preserved as backup/2026-11-18-current-game at commit 02f4d01d294921aacc9c6227c74355da29326ad0. The Research Hub repository (shanelnumber5/promptcraft-research-log) was preserved as backup/2026-11-18-research-hub at commit 4258dbb9bd17e287edebe3aa13ad1c76caaceb4f, following the Development Log interface refactor. Both branches preserve the corresponding committed source files and version history at the selected revision; they do not include uncommitted changes, browser-local data, Netlify Blobs, or live cloud-state records. No binary ZIP was uploaded to the Hub Project Backups storage in this operation.",
+      "why": "This milestone establishes reproducible Git-based restoration points for the current game and the Research Hub before additional modifications. Distinguishing code snapshots from a full research-data archive prevents the Git backup from being mistaken for a complete preservation of the Hub's cloud-synchronized records and screenshot bytes. The two branches are accessible independently and should be retained for recovery and longitudinal development documentation.",
+      "tags": [
+        "backup",
+        "GitHub",
+        "game source",
+        "Research Hub",
+        "version control",
+        "recovery point",
+        "November 2026"
+      ],
+      "images": []
+    },
+    {
+      "id": "log-2026-11-18-development-log-refactor",
+      "date": "2026-11-18",
+      "phase": "Iteration",
+      "title": "Development Log interface and formatting refactored",
+      "what": "Refactored the Research Hub Development Log interface to improve readability and navigation without changing historical records. Entries are grouped by month and remain ordered newest first; each entry now displays the date before its category and title, with the development change and rationale presented as full-width reading sections. Added search-result counts, more descriptive search controls, a collapsible add/edit form, improved responsive spacing and typography, and deferred loading of below-the-fold development screenshots. Revised interface terminology from phases to categories. Changes were committed to the Research Hub GitHub repository; publication to Netlify and live cloud-state verification remain separate steps.",
+      "why": "The Development Log had grown into a substantial chronological record, and its two-column narrative cards, prominent always-open form, and immediate loading of attached screenshots made reviewing the history unnecessarily difficult. These changes prioritize legibility, date-by-date review, and faster access to evidence while preserving source records, user annotations, images, and backups. Historical entries were not rewritten; older terminology should remain part of the authentic development record.",
+      "tags": [
+        "Development Log",
+        "Research Hub",
+        "interface refactor",
+        "responsive layout",
+        "visual history",
+        "performance",
+        "date grouping",
+        "data preservation"
+      ],
+      "images": []
+    },
+    {
+      "id": "log-2026-11-18-openai-babbage-review",
+      "date": "2026-11-18",
+      "phase": "Reflection",
+      "title": "OpenAI Babbage API integration reviewed and retained",
+      "what": "Reviewed the active PromptCraft game repository (shanelnumber5/promptcraft-next-main) to confirm Babbage's AI provider and server-side integration. The Netlify function netlify/functions/babbage.js identifies OpenAI as the provider, calls the OpenAI Responses API, reads OPENAI_API_KEY from server-side environment variables, and uses the configurable OPENAI_MODEL value with a default of gpt-5.6-terra. The function identifies proxy version V373. No provider migration or model change was made. The deployed API key, runtime model availability, and live response performance were not tested during this review.",
+      "why": "The review established that continuing to use OpenAI does not require replacing PromptCraft's existing AI architecture. Keeping the key server-side avoids exposing credentials in the browser and maintains separation between participant-facing gameplay and external AI services. Before changing providers, the project should assess feedback quality, response speed, cost, reliability, and consistency. For research documentation, record the model and prompt versions and distinguish live AI responses from fallback output so changes in feedback are not mistaken for changes in educator reasoning.",
+      "tags": [
+        "AI architecture",
+        "OpenAI",
+        "Responses API",
+        "Babbage",
+        "Netlify",
+        "serverless proxy",
+        "model configuration",
+        "research instrumentation",
+        "provider review",
+        "no migration"
+      ],
+      "images": []
+    },
+    {
       "phase": "Conceptualization",
       "date": "April 24, 2026",
       "title": "PromptCraft concept originated",

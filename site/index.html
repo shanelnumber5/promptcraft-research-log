@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#171716">
   <title>PromptCraft Research & Development Hub</title>
-  <link rel="stylesheet" href="style.css?v=20261019-citation-a11y2">
+  <link rel="stylesheet" href="style.css?v=20261118-log-layout1">
 </head>
 <body>
   <header class="topbar">
@@ -43,21 +43,21 @@
   <main>
     <section id="view-log" class="view active">
       <div class="page-head">
-        <div><h1>Development Log</h1><p>A timestamped record of design decisions, iterations, testing, and reflection.</p></div>
-        <div class="stats"><div><b id="logCount">0</b><span>entries</span></div><div><b id="phaseCount">0</b><span>phases</span></div></div>
+        <div><h1>Development Log</h1><p>A dated history of gameplay changes, design decisions, testing, and reflections.</p></div>
+        <div class="stats"><div><b id="logCount">0</b><span>entries</span></div><div><b id="phaseCount">0</b><span>categories</span></div></div>
       </div>
-      <div class="panel form-panel">
-        <h2 id="logFormTitle">Add new entry</h2>
+      <details class="panel form-panel log-composer" id="logComposer">
+        <summary class="log-composer-summary"><span id="logFormTitle">Add new entry</span><span class="log-composer-hint">Date, change, rationale, and optional screenshots</span></summary>
         <form id="logForm">
           <input type="hidden" id="logId">
           <div class="grid2">
             <label>Date<input id="logDate" type="date" required></label>
-            <label>Phase<select id="logPhase" required></select></label>
+            <label>Category<select id="logPhase" required></select></label>
           </div>
           <label>Entry title<input id="logTitle" placeholder="Brief descriptor" required></label>
           <label>What happened<textarea id="logWhat" rows="4" placeholder="Describe the activity, decision, or milestone…" required></textarea></label>
           <label>Why / rationale or reflection<textarea id="logWhy" rows="4" placeholder="Why this choice? What did you learn?"></textarea></label>
-          <label>Tags (comma separated)<input id="logTags" placeholder="e.g. OSCQR, Canvas LMS, Claude API"></label>
+          <label>Tags (comma separated)<input id="logTags" placeholder="e.g. accessibility, Babbage, OpenAI API"></label>
           <fieldset class="dev-images-fieldset">
             <legend>Development images <span class="optional">optional</span></legend>
             <p class="image-help">Attach screenshots or photos that document this stage of development. Each image can be labeled and optionally included in the curated Visual History. Image uploads require the cloud admin connection so they stay available across devices.</p>
@@ -66,9 +66,10 @@
           </fieldset>
           <div class="actions"><button type="button" id="logClear" class="ghost">Clear</button><button type="submit">Save entry</button></div>
         </form>
-      </div>
-      <div class="filters"><input id="logSearch" placeholder="Search entries…"><select id="logFilter"></select><button id="restoreLogBtn" class="ghost">Restore base entries</button><button id="exportLogBtn" class="ghost">Export log .txt</button></div>
-      <div id="logList" class="cards"></div>
+      </details>
+      <div class="filters log-filters"><input id="logSearch" type="search" aria-label="Search development log entries" placeholder="Search dates, changes, rationale, or tags…"><select id="logFilter" aria-label="Filter development log by phase"></select><button id="restoreLogBtn" class="ghost" type="button">Restore base entries</button><button id="exportLogBtn" class="ghost" type="button">Export log .txt</button></div>
+      <p id="logResults" class="log-results" role="status" aria-live="polite"></p>
+      <div id="logList" class="cards log-timeline"></div>
     </section>
 
     <section id="view-visual" class="view">
@@ -334,6 +335,6 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="library-cleanup.js?v=20261019-library1"></script>
   <script src="seed-data.js?v=20261019-library1"></script>
-  <script src="app.js?v=20261026-log-date-sort1"></script>
+  <script src="app.js?v=20261118-log-layout1"></script>
 </body>
 </html>

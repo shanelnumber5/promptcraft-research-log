@@ -391,15 +391,62 @@ async function getDevelopmentImageUrl(img){
 function findImageMeta(id){for(const log of state.logs||[]){const img=(log.images||[]).find(x=>x.id===id);if(img)return {img,log}}return null}
 async function hydrateImages(root=document){
  const nodes=[...root.querySelectorAll('img[data-cloud-image]')];
- await Promise.all(nodes.map(async imgEl=>{const id=imgEl.dataset.cloudImage,found=findImageMeta(id);if(!found)return;try{imgEl.src=await getDevelopmentImageUrl(found.img)}catch(e){imgEl.alt='Image unavailable';console.warn('Image load failed',id,e)}}));
+ const load=async imgEl=>{
+   if(!imgEl.isConnected)return;
+   const id=imgEl.dataset.cloudImage,found=findImageMeta(id);
+   if(!found)return;
+   try{imgEl.src=await getDevelopmentImageUrl(found.img)}
+   catch(e){imgEl.alt='Image unavailable';console.warn('Image load failed',id,e)}
+ };
+ // The Development Log can contain dozens of screenshots. Do not download all of
+ // them just to display the first few dated entries.
+ if(root.id==='logList'&&typeof IntersectionObserver!=='undefined'){
+   const observer=new IntersectionObserver(entries=>{
+     for(const entry of entries)if(entry.isIntersecting){
+       observer.unobserve(entry.target);
+       void load(entry.target);
+     }
+   },{rootMargin:'300px 0px'});
+   nodes.forEach(img=>observer.observe(img));
+   return;
+ }
+ await Promise.all(nodes.map(load));
 }
 window.openDevelopmentImage=async(entryId,imageId)=>{const found=findImageMeta(imageId);if(!found)return;const modal=$('#imageModal'),img=$('#imageModalImg'),cap=$('#imageModalCaption');img.src=await getDevelopmentImageUrl(found.img);img.alt=found.img.caption||found.img.fileName||'Development image';cap.textContent=[found.img.imageType,found.img.caption,found.log.title].filter(Boolean).join(' · ');modal.classList.remove('hidden');document.body.classList.add('modal-open')};
 function closeImageModal(){$('#imageModal').classList.add('hidden');$('#imageModalImg').removeAttribute('src');if(typeof researchModalObjectUrl!=='undefined'&&researchModalObjectUrl){URL.revokeObjectURL(researchModalObjectUrl);researchModalObjectUrl=''}document.body.classList.remove('modal-open')}
 function render(){initSelects();renderLogs();renderVisualHistory();renderSources();renderPaperUses();renderPlans();renderBackups();renderPaperBackups();setStorageBadge()}
 function logImagesHtml(e){const imgs=Array.isArray(e.images)?e.images:[];if(!imgs.length)return'';return `<div class="dev-image-gallery">${imgs.map(img=>imageMetaHtml(img,e.id,false)).join('')}</div>`}
-function renderLogs(){let items=[...state.logs].sort((a,b)=>compareLogDates(a,b,true));const q=$('#logSearch').value.toLowerCase().trim(),phase=$('#logFilter').value;if(q)items=items.filter(e=>JSON.stringify(e).toLowerCase().includes(q));if(phase)items=items.filter(e=>e.phase===phase);$('#logCount').textContent=state.logs.length;$('#phaseCount').textContent=new Set(state.logs.map(e=>e.phase)).size;$('#logList').innerHTML=items.length?items.map(e=>`<article class="card"><div class="card-head"><div><span class="phase">${esc(e.phase)}</span><h3>${esc(e.title)}</h3><div class="meta">${esc(humanDate(e.date))}</div></div></div><div class="card-body"><div><h4>What happened</h4><p>${esc(e.what)}</p></div><div><h4>Why / rationale & reflection</h4><p>${esc(e.why)}</p></div></div>${logImagesHtml(e)}<div class="tags">${(e.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="card-actions"><button class="ghost" onclick="editLog('${e.id}')">Edit</button><button class="ghost danger" onclick="deleteLog('${e.id}')">Delete</button></div></article>`).join(''):'<div class="empty">No matching development entries.</div>';hydrateImages($('#logList'))}
+function renderLogs(){
+  let items=[...state.logs].sort((a,b)=>compareLogDates(a,b,true));
+  const q=$('#logSearch').value.toLowerCase().trim();
+  const phase=$('#logFilter').value;
+  if(q)items=items.filter(e=>[e.date,humanDate(e.date),e.phase,e.title,e.what,e.why,...(e.tags||[])].some(v=>String(v||'').toLowerCase().includes(q)));
+  if(phase)items=items.filter(e=>e.phase===phase);
+  $('#logCount').textContent=state.logs.length;
+  $('#phaseCount').textContent=new Set(state.logs.map(e=>e.phase)).size;
+  const total=state.logs.length;
+  const resultLabel=items.length===total?'Showing all '+total+' entries':'Showing '+items.length+' of '+total+' entries';
+  $('#logResults').textContent=resultLabel+' · Newest first';
+  const cards=[];
+  let previousMonth='';
+  for(const e of items){
+    const date=String(e.date||'');
+    const monthKey=/^\d{4}-\d{2}/.test(date)?date.slice(0,7):'unknown';
+    if(monthKey!==previousMonth){
+      const heading=monthKey==='unknown'?'Undated entries':new Date(monthKey+'-01T12:00:00').toLocaleDateString(undefined,{month:'long',year:'numeric'});
+      cards.push(`<h2 class="log-month">${esc(heading)}</h2>`);
+      previousMonth=monthKey;
+    }
+    const what=String(e.what||'').trim();
+    const why=String(e.why||'').trim();
+    const images=logImagesHtml(e);
+    cards.push(`<article class="card log-card"><div class="card-head"><div><time class="log-date" datetime="${esc(date)}">${esc(humanDate(date))}</time><span class="phase">${esc(e.phase)}</span><h3>${esc(e.title)}</h3></div></div><div class="card-body">${what?`<section><h4>What happened</h4><p>${esc(what)}</p></section>`:''}${why?`<section class="log-rationale"><h4>Why / rationale & reflection</h4><p>${esc(why)}</p></section>`:''}</div>${images}${(e.tags||[]).length?`<div class="tags">${e.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}<div class="card-actions"><button type="button" class="ghost" onclick="editLog('${esc(e.id)}')">Edit</button><button type="button" class="ghost danger" onclick="deleteLog('${esc(e.id)}')">Delete</button></div></article>`);
+  }
+  $('#logList').innerHTML=items.length?cards.join(''):'<div class="empty">No entries match those filters. Try another keyword or phase.</div>';
+  hydrateImages($('#logList'));
+}
 function clearLog(){revokePendingPreviews();editingLogImages=[];pendingLogImages=[];Object.assign($('#logForm'),{});$('#logId').value='';$('#logDate').value=today();$('#logPhase').value='Iteration';$('#logTitle').value='';$('#logWhat').value='';$('#logWhy').value='';$('#logTags').value='';$('#logImages').value='';$('#logFormTitle').textContent='Add new entry';renderLogImageEditor()}
-window.editLog=id=>{const e=state.logs.find(x=>x.id===id);if(!e)return;revokePendingPreviews();pendingLogImages=[];editingLogImages=clone(e.images||[]);$('#logId').value=e.id;$('#logDate').value=isoDate(e.date);$('#logPhase').value=e.phase;$('#logTitle').value=e.title;$('#logWhat').value=e.what;$('#logWhy').value=e.why;$('#logTags').value=(e.tags||[]).join(', ');$('#logImages').value='';$('#logFormTitle').textContent='Edit entry';renderLogImageEditor();scrollTo({top:120,behavior:'smooth'})}
+window.editLog=id=>{const e=state.logs.find(x=>x.id===id);if(!e)return;revokePendingPreviews();pendingLogImages=[];editingLogImages=clone(e.images||[]);$('#logId').value=e.id;$('#logDate').value=isoDate(e.date);$('#logPhase').value=e.phase;$('#logTitle').value=e.title;$('#logWhat').value=e.what;$('#logWhy').value=e.why;$('#logTags').value=(e.tags||[]).join(', ');$('#logImages').value='';$('#logFormTitle').textContent='Edit entry';$('#logComposer').open=true;renderLogImageEditor();$('#logComposer').scrollIntoView({behavior:'smooth',block:'start'})}
 window.deleteLog=async id=>{if(!confirm('Delete this development log entry?'))return;const item=state.logs.find(x=>x.id===id);if(!item)return;const imgs=item.images||[];if(imgs.length&&!adminKey)return toast('Connect cloud storage before deleting an entry with images.');try{for(const img of imgs)await deleteDevelopmentImageBlob(img)}catch(e){console.error(e);return toast('Image cleanup failed; entry was not deleted.')}addTombstone('logs',item);state.logs=state.logs.filter(x=>x.id!==id);await persist();renderLogs();renderVisualHistory();toast('Entry deleted')}
 function renderVisualHistory(){
  const rows=[];for(const log of state.logs||[])for(const img of log.images||[])if(img.includeInHistory)rows.push({log,img});

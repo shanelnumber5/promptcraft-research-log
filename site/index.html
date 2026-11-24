@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#171716">
   <title>PromptCraft Research & Development Hub</title>
-  <link rel="stylesheet" href="style.css?v=20261118-log-layout1">
+  <link rel="stylesheet" href="style.css?v=20261124-structured-apa1">
 </head>
 <body>
   <header class="topbar">
@@ -43,21 +43,21 @@
   <main>
     <section id="view-log" class="view active">
       <div class="page-head">
-        <div><h1>Development Log</h1><p>A dated history of gameplay changes, design decisions, testing, and reflections.</p></div>
-        <div class="stats"><div><b id="logCount">0</b><span>entries</span></div><div><b id="phaseCount">0</b><span>categories</span></div></div>
+        <div><h1>Development Log</h1><p>A timestamped record of design decisions, iterations, testing, and reflection.</p></div>
+        <div class="stats"><div><b id="logCount">0</b><span>entries</span></div><div><b id="phaseCount">0</b><span>phases</span></div></div>
       </div>
-      <details class="panel form-panel log-composer" id="logComposer">
-        <summary class="log-composer-summary"><span id="logFormTitle">Add new entry</span><span class="log-composer-hint">Date, change, rationale, and optional screenshots</span></summary>
+      <div class="panel form-panel">
+        <h2 id="logFormTitle">Add new entry</h2>
         <form id="logForm">
           <input type="hidden" id="logId">
           <div class="grid2">
             <label>Date<input id="logDate" type="date" required></label>
-            <label>Category<select id="logPhase" required></select></label>
+            <label>Phase<select id="logPhase" required></select></label>
           </div>
           <label>Entry title<input id="logTitle" placeholder="Brief descriptor" required></label>
           <label>What happened<textarea id="logWhat" rows="4" placeholder="Describe the activity, decision, or milestone…" required></textarea></label>
           <label>Why / rationale or reflection<textarea id="logWhy" rows="4" placeholder="Why this choice? What did you learn?"></textarea></label>
-          <label>Tags (comma separated)<input id="logTags" placeholder="e.g. accessibility, Babbage, OpenAI API"></label>
+          <label>Tags (comma separated)<input id="logTags" placeholder="e.g. OSCQR, Canvas LMS, Claude API"></label>
           <fieldset class="dev-images-fieldset">
             <legend>Development images <span class="optional">optional</span></legend>
             <p class="image-help">Attach screenshots or photos that document this stage of development. Each image can be labeled and optionally included in the curated Visual History. Image uploads require the cloud admin connection so they stay available across devices.</p>
@@ -66,10 +66,9 @@
           </fieldset>
           <div class="actions"><button type="button" id="logClear" class="ghost">Clear</button><button type="submit">Save entry</button></div>
         </form>
-      </details>
-      <div class="filters log-filters"><input id="logSearch" type="search" aria-label="Search development log entries" placeholder="Search dates, changes, rationale, or tags…"><select id="logFilter" aria-label="Filter development log by phase"></select><button id="restoreLogBtn" class="ghost" type="button">Restore base entries</button><button id="exportLogBtn" class="ghost" type="button">Export log .txt</button></div>
-      <p id="logResults" class="log-results" role="status" aria-live="polite"></p>
-      <div id="logList" class="cards log-timeline"></div>
+      </div>
+      <div class="filters"><input id="logSearch" placeholder="Search entries…"><select id="logFilter"></select><button id="restoreLogBtn" class="ghost">Restore base entries</button><button id="exportLogBtn" class="ghost">Export log .txt</button></div>
+      <div id="logList" class="cards"></div>
     </section>
 
     <section id="view-visual" class="view">
@@ -133,6 +132,7 @@
         </div>
         <form id="sourceForm">
           <input type="hidden" id="sourceId">
+          <input type="hidden" id="sourceApaAuthors">
           <div class="source-primary-document">
             <div class="source-edit-block-head"><div><h3>Document / article</h3><p>Keep the document and its article/source name together.</p></div></div>
             <p id="sourcePrimaryFileHelp" class="small">Use the paper selected in Quick add source above. Leave it blank while editing to keep the current document.</p>
@@ -141,8 +141,10 @@
             <label>Article / source name<input id="sourceTitle"></label>
           </div>
           <div class="grid2"><label>Author(s) / creator / organization<input id="sourceAuthors"></label><label>Date / year<input id="sourceDate" placeholder="2025 or 2025-08-12"></label></div>
-          <label>Journal / publisher<input id="sourcePublisher"></label>
-          <label>APA citation / reference<textarea id="sourceApa" rows="2"></textarea></label>
+          <div class="grid2"><label>Journal title<input id="sourceJournal" placeholder="e.g. Research in Nursing & Health"></label><label>Publisher / organization<input id="sourcePublisher"></label></div>
+          <div class="grid4 citation-detail-grid"><label>Volume<input id="sourceVolume" placeholder="23"></label><label>Issue<input id="sourceIssue" placeholder="4"></label><label>Pages / article number<input id="sourcePages" placeholder="334–340"></label><label>DOI<input id="sourceDoi" placeholder="10.xxxx/xxxxx"></label></div>
+          <label>APA citation / reference<textarea id="sourceApa" rows="2" placeholder="Generated from the citation fields when possible; you can still edit it manually."></textarea></label>
+          <div id="sourceApaPreview" class="citation source-citation hidden" aria-live="polite"></div>
           <div class="citation-copy-actions editor-citation-actions" role="group" aria-label="Copy citation options">
             <button type="button" class="ghost" onclick="copyEditorInText()">Copy in-text citation</button>
             <button type="button" class="ghost" onclick="copyEditorNarrative()">Copy narrative citation</button>
@@ -334,7 +336,7 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="library-cleanup.js?v=20261019-library1"></script>
-  <script src="seed-data.js?v=20261019-library1"></script>
-  <script src="app.js?v=20261118-log-layout1"></script>
+  <script src="seed-data.js?v=20261118-chatmt-log1"></script>
+  <script src="app.js?v=20261124-structured-apa1"></script>
 </body>
 </html>

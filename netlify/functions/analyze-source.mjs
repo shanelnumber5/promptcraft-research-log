@@ -20,8 +20,16 @@ function cleanText(value = "") {
 }
 
 function extractDoi(value = "") {
-  const m = String(value || "").match(/10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i);
+  let text=String(value||"");
+  try{text=decodeURIComponent(text)}catch{}
+  const m=text.match(/10\.\d{4,9}\/[-._;()/:A-Z0-9<>]+/i);
   return m ? m[0].replace(/[).,;]+$/g, "") : "";
+}
+function doiUrl(doi=""){
+  const d=extractDoi(doi);
+  if(!d)return "";
+  const encoded=encodeURIComponent(d).replace(/%2F/gi,"/").replace(/[!'()*]/g,c=>`%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `https://doi.org/${encoded}`;
 }
 
 function first(v) { return Array.isArray(v) ? (v[0] || "") : (v || ""); }
@@ -32,6 +40,15 @@ function crossrefDate(m = {}) {
 function crossrefAuthors(list = []) {
   return (list || []).map(a => [a.given, a.family].filter(Boolean).join(" ")).filter(Boolean).join(", ");
 }
+function initials(given = "") {
+  return String(given || "").trim().split(/[\s-]+/).filter(Boolean).map(part => `${part[0]?.toUpperCase() || ""}.`).join(" ");
+}
+function crossrefApaAuthors(list = []) {
+  const names=(list||[]).map(a=>{const family=String(a.family||"").trim(),ini=initials(a.given);return [family,ini].filter(Boolean).join(", ")}).filter(Boolean);
+  if(names.length<=1)return names[0]||"";
+  if(names.length===2)return `${names[0]}, & ${names[1]}`;
+  return `${names.slice(0,-1).join(", ")}, & ${names.at(-1)}`;
+}
 
 async function crossrefLookup(input) {
   const doi = extractDoi(input);
@@ -40,20 +57,26 @@ async function crossrefLookup(input) {
     const r = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
       headers: { "User-Agent": "PromptCraftResearchHub/1.0" }
     });
-    if (!r.ok) return { doi, url: `https://doi.org/${doi}` };
+    if (!r.ok) return { doi, url: doiUrl(doi) };
     const m = (await r.json())?.message || {};
     return {
       doi,
       title: first(m.title),
       authors: crossrefAuthors(m.author),
+      apaAuthors: crossrefApaAuthors(m.author),
       date: crossrefDate(m),
-      publisher: first(m["container-title"]) || m.publisher || "",
-      url: `https://doi.org/${doi}`,
+      journal: first(m["container-title"]) || "",
+      publisher: m.publisher || "",
+      volume: String(m.volume || ""),
+      issue: String(m.issue || ""),
+      pages: String(m.page || m["article-number"] || ""),
+      doi,
+      url: doiUrl(doi),
       abstract: cleanText(m.abstract || ""),
       sourceType: m.type === "book" || m.type === "book-chapter" ? "Book / Chapter" : "Article / PDF"
     };
   } catch {
-    return { doi, url: `https://doi.org/${doi}` };
+    return { doi, url: doiUrl(doi) };
   }
 }
 
@@ -82,8 +105,12 @@ async function urlLookup(input) {
       title: metaContent(html, ["citation_title", "og:title", "dc.title"]),
       authors: authorMatches.join(", ") || metaContent(html, ["author", "dc.creator"]),
       date: metaContent(html, ["citation_publication_date", "citation_date", "article:published_time", "dc.date"]),
-      publisher: metaContent(html, ["citation_journal_title", "citation_publisher", "og:site_name", "dc.publisher"]),
-      url: doi ? `https://doi.org/${doi}` : (r.url || String(input).trim()),
+      journal: metaContent(html, ["citation_journal_title"]),
+      publisher: metaContent(html, ["citation_publisher", "og:site_name", "dc.publisher"]),
+      volume: metaContent(html, ["citation_volume"]),
+      issue: metaContent(html, ["citation_issue"]),
+      pages: (()=>{const firstPage=metaContent(html,["citation_firstpage"]),lastPage=metaContent(html,["citation_lastpage"]);return firstPage&&lastPage?`${firstPage}–${lastPage}`:firstPage||metaContent(html,["citation_pages"])})(),
+      url: doi ? doiUrl(doi) : (r.url || String(input).trim()),
       doi: extractDoi(doi),
       abstract: metaContent(html, ["citation_abstract", "description", "og:description", "dc.description"]),
       pageText: cleanText(html).slice(0, 60000)
@@ -157,11 +184,13 @@ async function extractFileText(buffer, fileName = "", mimeType = "") {
 
 function apaFromMeta(m = {}) {
   if (!m.title) return "";
-  const author = m.authors || "";
+  const author = m.apaAuthors || m.authors || "";
   const year = String(m.date || "").match(/\d{4}/)?.[0] || "n.d.";
+  const journal=String(m.journal||"").trim(),volume=String(m.volume||"").trim(),issue=String(m.issue||"").trim(),pages=String(m.pages||"").trim();
+  const doi=extractDoi(m.doi||m.url||""),link=doi?doiUrl(doi):(/^https?:\/\//i.test(String(m.url||""))?String(m.url):"");
+  if(journal){const journalBlock=[journal,volume].filter(Boolean).join(", ")+(issue?`(${issue})`:"");const title=/[.?!]$/.test(String(m.title))?String(m.title):`${m.title}.`;return `${author ? author + " " : ""}(${year}). ${title} ${journalBlock}${pages?`, ${pages}`:""}.${link?` ${link}`:""}`.replace(/\s+/g," ").trim()}
   const pub = m.publisher ? ` ${m.publisher}.` : "";
-  const url = m.url ? ` ${m.url}` : "";
-  return `${author ? author + " " : ""}(${year}). ${m.title}.${pub}${url}`.replace(/\s+/g, " ").trim();
+  return `${author ? author + " " : ""}(${year}). ${m.title}.${pub}${link?` ${link}`:""}`.replace(/\s+/g, " ").trim();
 }
 
 function mergeMeta(a = {}, b = {}) {
@@ -190,7 +219,7 @@ async function analyzeWithOpenAI({ metadata, documentText, themes, paperSections
   const source = String(documentText || metadata.pageText || metadata.abstract || "").slice(0, 140000);
   if (!source) return { analysisAvailable: false, warning: "No article text or abstract was available for AI analysis. Bibliographic fields were filled where possible." };
   const instructions = `You are assisting with a scholarly research library for PromptCraft, a professional-learning environment whose primary research focus is how educators develop and demonstrate instructional-design reasoning and course redesign. Purposeful creativity and critical AI collaboration support that reasoning. Look for diagnosis, evidence, justification, comparison of alternatives, feedback, reflection, revision and transfer to practice.\n\nAnalyze only the supplied source text and metadata. Do not invent missing bibliographic facts, findings, methods, page numbers, quotations, or claims. If evidence is missing, return an empty string or empty array. Page numbers may be used only when the source text includes explicit markers like --- PAGE 12 ---. For DOCX/TXT/HTML without page markers, use a section/heading when clearly available or leave location blank. Keep notes concise and useful for writing a professional paper. Direct quotes must be exact and under 25 words; otherwise paraphrase. Return only valid JSON, no markdown.`;
-  const input = `AVAILABLE RESEARCH THEMES:\n${(themes || []).join("\n")}\n\nAVAILABLE PAPER SECTIONS:\n${(paperSections || []).join("\n")}\n\nKNOWN METADATA:\n${JSON.stringify(metadata, null, 2)}\n\nSOURCE TEXT:\n${source}\n\nReturn this JSON shape exactly:\n{\n  "title":"", "authors":"", "date":"", "publisher":"", "apa":"", "url":"", "sourceType":"",\n  "theme":"", "priority":"High|Medium|Low", "keyArgument":"", "connection":"", "methodology":"", "paperSection":"",\n  "tags":[],\n  "notes":[{"location":"", "type":"Key finding|Direct quote|Paraphrase|Definition|Method / measure|Limitation|Figure / diagram|Table / data|Paper idea|Other", "text":"", "interpretation":"", "paperUse":"", "tags":[]}],\n  "figures":[{"location":"", "type":"Figure / diagram|Table / data", "title":"", "relevance":"", "paperUse":""}]\n}`;
+  const input = `AVAILABLE RESEARCH THEMES:\n${(themes || []).join("\n")}\n\nAVAILABLE PAPER SECTIONS:\n${(paperSections || []).join("\n")}\n\nKNOWN METADATA:\n${JSON.stringify(metadata, null, 2)}\n\nSOURCE TEXT:\n${source}\n\nReturn this JSON shape exactly:\n{\n  "title":"", "authors":"", "apaAuthors":"", "date":"", "journal":"", "publisher":"", "volume":"", "issue":"", "pages":"", "doi":"", "apa":"", "url":"", "sourceType":"",\n  "theme":"", "priority":"High|Medium|Low", "keyArgument":"", "connection":"", "methodology":"", "paperSection":"",\n  "tags":[],\n  "notes":[{"location":"", "type":"Key finding|Direct quote|Paraphrase|Definition|Method / measure|Limitation|Figure / diagram|Table / data|Paper idea|Other", "text":"", "interpretation":"", "paperUse":"", "tags":[]}],\n  "figures":[{"location":"", "type":"Figure / diagram|Table / data", "title":"", "relevance":"", "paperUse":""}]\n}`;
   const r = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -227,7 +256,7 @@ export default async (req) => {
     for (const [key, value] of Object.entries(ai)) {
       if (value !== "" && value !== null && value !== undefined && (!Array.isArray(value) || value.length)) merged[key] = value;
     }
-    if (!merged.apa) merged.apa = apaFromMeta(merged);
+    if (merged.journal || !merged.apa) merged.apa = apaFromMeta(merged);
     return Response.json({ ok: true, result: merged, extractedCharacters: documentText.length });
   } catch (err) {
     console.error("analyze-source", err);

@@ -258,7 +258,7 @@ function renderSourceAnalysisPreview(result={},notes=[]){
  content.innerHTML=blocks.join('');box.classList.remove('hidden');
 }
 function applySourceAnalysis(result={},lookup=''){
- const map=[['sourceTitle','title'],['sourceAuthors','authors'],['sourceDate','date'],['sourcePublisher','publisher'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url']];
+ const map=[['sourceTitle','title'],['sourceAuthors','authors'],['sourceApaAuthors','apaAuthors'],['sourceDate','date'],['sourceJournal','journal'],['sourcePublisher','publisher'],['sourceVolume','volume'],['sourceIssue','issue'],['sourcePages','pages'],['sourceDoi','doi'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url']];
  let filled=0;
  for(const [id,key] of map){const el=$('#'+id),v=result[key];if(el&&v){el.value=String(v);filled++}}
  if(!$('#sourceUrl').value.trim()&&lookup)$('#sourceUrl').value=normalizeSourceUrl(lookup);
@@ -269,7 +269,7 @@ function applySourceAnalysis(result={},lookup=''){
  const notes=sourceAnalysisNotes(result),existingKeys=new Set(pendingImportedAnnotations.map(a=>`${a.location||''}|${a.text||''}`));for(const n of notes){const k=`${n.location||''}|${n.text||''}`;if(!existingKeys.has(k)){pendingImportedAnnotations.push(n);existingKeys.add(k)}}
  renderSourceAnalysisPreview(result,notes);
  const details=$('.source-optional-details');if(details&&(result.keyArgument||result.connection||result.methodology||result.theme||result.paperSection))details.open=true;
- refreshSourceEditorRelated(sourceEditorId());
+ refreshSourceEditorRelated(sourceEditorId());refreshEditorApaPreview();
  return {filled,notes:notes.length};
 }
 async function analyzeSourceIntake(){
@@ -391,62 +391,15 @@ async function getDevelopmentImageUrl(img){
 function findImageMeta(id){for(const log of state.logs||[]){const img=(log.images||[]).find(x=>x.id===id);if(img)return {img,log}}return null}
 async function hydrateImages(root=document){
  const nodes=[...root.querySelectorAll('img[data-cloud-image]')];
- const load=async imgEl=>{
-   if(!imgEl.isConnected)return;
-   const id=imgEl.dataset.cloudImage,found=findImageMeta(id);
-   if(!found)return;
-   try{imgEl.src=await getDevelopmentImageUrl(found.img)}
-   catch(e){imgEl.alt='Image unavailable';console.warn('Image load failed',id,e)}
- };
- // The Development Log can contain dozens of screenshots. Do not download all of
- // them just to display the first few dated entries.
- if(root.id==='logList'&&typeof IntersectionObserver!=='undefined'){
-   const observer=new IntersectionObserver(entries=>{
-     for(const entry of entries)if(entry.isIntersecting){
-       observer.unobserve(entry.target);
-       void load(entry.target);
-     }
-   },{rootMargin:'300px 0px'});
-   nodes.forEach(img=>observer.observe(img));
-   return;
- }
- await Promise.all(nodes.map(load));
+ await Promise.all(nodes.map(async imgEl=>{const id=imgEl.dataset.cloudImage,found=findImageMeta(id);if(!found)return;try{imgEl.src=await getDevelopmentImageUrl(found.img)}catch(e){imgEl.alt='Image unavailable';console.warn('Image load failed',id,e)}}));
 }
 window.openDevelopmentImage=async(entryId,imageId)=>{const found=findImageMeta(imageId);if(!found)return;const modal=$('#imageModal'),img=$('#imageModalImg'),cap=$('#imageModalCaption');img.src=await getDevelopmentImageUrl(found.img);img.alt=found.img.caption||found.img.fileName||'Development image';cap.textContent=[found.img.imageType,found.img.caption,found.log.title].filter(Boolean).join(' · ');modal.classList.remove('hidden');document.body.classList.add('modal-open')};
 function closeImageModal(){$('#imageModal').classList.add('hidden');$('#imageModalImg').removeAttribute('src');if(typeof researchModalObjectUrl!=='undefined'&&researchModalObjectUrl){URL.revokeObjectURL(researchModalObjectUrl);researchModalObjectUrl=''}document.body.classList.remove('modal-open')}
 function render(){initSelects();renderLogs();renderVisualHistory();renderSources();renderPaperUses();renderPlans();renderBackups();renderPaperBackups();setStorageBadge()}
 function logImagesHtml(e){const imgs=Array.isArray(e.images)?e.images:[];if(!imgs.length)return'';return `<div class="dev-image-gallery">${imgs.map(img=>imageMetaHtml(img,e.id,false)).join('')}</div>`}
-function renderLogs(){
-  let items=[...state.logs].sort((a,b)=>compareLogDates(a,b,true));
-  const q=$('#logSearch').value.toLowerCase().trim();
-  const phase=$('#logFilter').value;
-  if(q)items=items.filter(e=>[e.date,humanDate(e.date),e.phase,e.title,e.what,e.why,...(e.tags||[])].some(v=>String(v||'').toLowerCase().includes(q)));
-  if(phase)items=items.filter(e=>e.phase===phase);
-  $('#logCount').textContent=state.logs.length;
-  $('#phaseCount').textContent=new Set(state.logs.map(e=>e.phase)).size;
-  const total=state.logs.length;
-  const resultLabel=items.length===total?'Showing all '+total+' entries':'Showing '+items.length+' of '+total+' entries';
-  $('#logResults').textContent=resultLabel+' · Newest first';
-  const cards=[];
-  let previousMonth='';
-  for(const e of items){
-    const date=String(e.date||'');
-    const monthKey=/^\d{4}-\d{2}/.test(date)?date.slice(0,7):'unknown';
-    if(monthKey!==previousMonth){
-      const heading=monthKey==='unknown'?'Undated entries':new Date(monthKey+'-01T12:00:00').toLocaleDateString(undefined,{month:'long',year:'numeric'});
-      cards.push(`<h2 class="log-month">${esc(heading)}</h2>`);
-      previousMonth=monthKey;
-    }
-    const what=String(e.what||'').trim();
-    const why=String(e.why||'').trim();
-    const images=logImagesHtml(e);
-    cards.push(`<article class="card log-card"><div class="card-head"><div><time class="log-date" datetime="${esc(date)}">${esc(humanDate(date))}</time><span class="phase">${esc(e.phase)}</span><h3>${esc(e.title)}</h3></div></div><div class="card-body">${what?`<section><h4>What happened</h4><p>${esc(what)}</p></section>`:''}${why?`<section class="log-rationale"><h4>Why / rationale & reflection</h4><p>${esc(why)}</p></section>`:''}</div>${images}${(e.tags||[]).length?`<div class="tags">${e.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}<div class="card-actions"><button type="button" class="ghost" onclick="editLog('${esc(e.id)}')">Edit</button><button type="button" class="ghost danger" onclick="deleteLog('${esc(e.id)}')">Delete</button></div></article>`);
-  }
-  $('#logList').innerHTML=items.length?cards.join(''):'<div class="empty">No entries match those filters. Try another keyword or phase.</div>';
-  hydrateImages($('#logList'));
-}
+function renderLogs(){let items=[...state.logs].sort((a,b)=>compareLogDates(a,b,true));const q=$('#logSearch').value.toLowerCase().trim(),phase=$('#logFilter').value;if(q)items=items.filter(e=>JSON.stringify(e).toLowerCase().includes(q));if(phase)items=items.filter(e=>e.phase===phase);$('#logCount').textContent=state.logs.length;$('#phaseCount').textContent=new Set(state.logs.map(e=>e.phase)).size;$('#logList').innerHTML=items.length?items.map(e=>`<article class="card"><div class="card-head"><div><span class="phase">${esc(e.phase)}</span><h3>${esc(e.title)}</h3><div class="meta">${esc(humanDate(e.date))}</div></div></div><div class="card-body"><div><h4>What happened</h4><p>${esc(e.what)}</p></div><div><h4>Why / rationale & reflection</h4><p>${esc(e.why)}</p></div></div>${logImagesHtml(e)}<div class="tags">${(e.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="card-actions"><button class="ghost" onclick="editLog('${e.id}')">Edit</button><button class="ghost danger" onclick="deleteLog('${e.id}')">Delete</button></div></article>`).join(''):'<div class="empty">No matching development entries.</div>';hydrateImages($('#logList'))}
 function clearLog(){revokePendingPreviews();editingLogImages=[];pendingLogImages=[];Object.assign($('#logForm'),{});$('#logId').value='';$('#logDate').value=today();$('#logPhase').value='Iteration';$('#logTitle').value='';$('#logWhat').value='';$('#logWhy').value='';$('#logTags').value='';$('#logImages').value='';$('#logFormTitle').textContent='Add new entry';renderLogImageEditor()}
-window.editLog=id=>{const e=state.logs.find(x=>x.id===id);if(!e)return;revokePendingPreviews();pendingLogImages=[];editingLogImages=clone(e.images||[]);$('#logId').value=e.id;$('#logDate').value=isoDate(e.date);$('#logPhase').value=e.phase;$('#logTitle').value=e.title;$('#logWhat').value=e.what;$('#logWhy').value=e.why;$('#logTags').value=(e.tags||[]).join(', ');$('#logImages').value='';$('#logFormTitle').textContent='Edit entry';$('#logComposer').open=true;renderLogImageEditor();$('#logComposer').scrollIntoView({behavior:'smooth',block:'start'})}
+window.editLog=id=>{const e=state.logs.find(x=>x.id===id);if(!e)return;revokePendingPreviews();pendingLogImages=[];editingLogImages=clone(e.images||[]);$('#logId').value=e.id;$('#logDate').value=isoDate(e.date);$('#logPhase').value=e.phase;$('#logTitle').value=e.title;$('#logWhat').value=e.what;$('#logWhy').value=e.why;$('#logTags').value=(e.tags||[]).join(', ');$('#logImages').value='';$('#logFormTitle').textContent='Edit entry';renderLogImageEditor();scrollTo({top:120,behavior:'smooth'})}
 window.deleteLog=async id=>{if(!confirm('Delete this development log entry?'))return;const item=state.logs.find(x=>x.id===id);if(!item)return;const imgs=item.images||[];if(imgs.length&&!adminKey)return toast('Connect cloud storage before deleting an entry with images.');try{for(const img of imgs)await deleteDevelopmentImageBlob(img)}catch(e){console.error(e);return toast('Image cleanup failed; entry was not deleted.')}addTombstone('logs',item);state.logs=state.logs.filter(x=>x.id!==id);await persist();renderLogs();renderVisualHistory();toast('Entry deleted')}
 function renderVisualHistory(){
  const rows=[];for(const log of state.logs||[])for(const img of log.images||[])if(img.includeInHistory)rows.push({log,img});
@@ -504,12 +457,61 @@ function sourceNarrativeCitation(s){
  let who='';if(info.count>=3&&names.length)who=`${names[0]} et al.`;else if(names.length===2)who=`${names[0]} and ${names[1]}`;else if(names.length===1)who=names[0];else who=String(s.authors||'').trim();
  if(who&&year)return`${who} (${year})`;return who||year
 }
+function citationDoi(value=''){
+ let text=String(value||'');try{text=decodeURIComponent(text)}catch{}const m=text.match(/10\.\d{4,9}\/[A-Z0-9._;()/:<>-]+/i);return m?m[0].replace(/[).,;]+$/,''):''
+}
+function sourceDoiValue(s){return String(s?.doi||'').trim()||citationDoi(s?.url)||citationDoi(s?.apa)}
+function encodeDoiForUrl(doi=''){return encodeURIComponent(String(doi||'')).replace(/%2F/gi,'/').replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase())}
+function legacyApaAuthors(s){
+ const apa=String(s?.apa||'').trim();if(!apa)return'';
+ const m=apa.match(/^(.*?)\s+\((?:(?:19|20)\d{2}[a-z]?|n\.d\.)\)\./i);return m?m[1].trim():''
+}
+function legacyJournalParts(s){
+ const out={journal:String(s?.journal||'').trim(),volume:String(s?.volume||'').trim(),issue:String(s?.issue||'').trim(),pages:String(s?.pages||'').trim()};
+ const apa=String(s?.apa||'');
+ if(!out.journal&&String(s?.sourceType||'').includes('Article'))out.journal=String(s?.publisher||'').trim();
+ if(!apa||!out.journal)return out;
+ const pos=apa.toLowerCase().indexOf(out.journal.toLowerCase());if(pos<0)return out;
+ const tail=apa.slice(pos+out.journal.length).replace(/^\s*,\s*/,'');
+ const m=tail.match(/^(\d+[A-Za-z]?)\s*(?:\(([^)]+)\))?\s*(?:,\s*([^.] +?|[^.]+?))?(?:\.|\s+https?:|$)/);
+ if(m){if(!out.volume)out.volume=String(m[1]||'').trim();if(!out.issue)out.issue=String(m[2]||'').trim();if(!out.pages)out.pages=String(m[3]||'').trim().replace(/\.$/,'')}
+ return out
+}
+function sourceCitationParts(s={}){
+ const legacy=legacyJournalParts(s),doi=sourceDoiValue(s),doiUrl=doi?`https://doi.org/${encodeDoiForUrl(doi)}`:'';
+ return {authors:String(s.apaAuthors||legacyApaAuthors(s)||s.authors||'').trim(),year:sourceCitationYear(s),title:String(s.title||'').trim(),journal:legacy.journal,volume:legacy.volume,issue:legacy.issue,pages:legacy.pages,doi,doiUrl,url:String(s.url||'').trim(),publisher:String(s.publisher||'').trim(),sourceType:String(s.sourceType||'')}
+}
+function sourceGeneratedApa(s={}){
+ const p=sourceCitationParts(s);if(!p.title)return String(s.apa||'').trim();
+ if(p.journal){
+   const journalBlock=[p.journal,p.volume].filter(Boolean).join(', ')+(p.issue?`(${p.issue})`:'');
+   const pages=p.pages?`, ${p.pages}`:'';const link=p.doiUrl||(/^https?:\/\//i.test(p.url)?p.url:'');
+   const title=/[.?!]$/.test(p.title)?p.title:`${p.title}.`;return `${p.authors?`${p.authors} `:''}(${p.year}). ${title} ${journalBlock}${pages}.${link?` ${link}`:''}`.replace(/\s+/g,' ').trim();
+ }
+ const existing=String(s.apa||'').trim();if(existing){const link=p.doiUrl||(/^https?:\/\//i.test(p.url)?p.url:'');return link&&!existing.includes(link)?`${existing.replace(/\s+$/,'')} ${link}`:existing}
+ const pub=p.publisher?` ${p.publisher}.`:'';const link=p.doiUrl||(/^https?:\/\//i.test(p.url)?p.url:'');return `${p.authors?`${p.authors} `:''}(${p.year}). ${p.title}.${pub}${link?` ${link}`:''}`.replace(/\s+/g,' ').trim()
+}
+function sourceGeneratedApaHtml(s={}){
+ const p=sourceCitationParts(s);if(!p.title)return esc(sourceGeneratedApa(s));
+ if(p.journal){
+   const journalVol=`${esc(p.journal)}${p.volume?`, ${esc(p.volume)}`:''}`;const issue=p.issue?`(${esc(p.issue)})`:'';const pages=p.pages?`, ${esc(p.pages)}`:'';const link=p.doiUrl||(/^https?:\/\//i.test(p.url)?p.url:'');
+   const title=/[.?!]$/.test(p.title)?esc(p.title):`${esc(p.title)}.`;return `${p.authors?`${esc(p.authors)} `:''}(${esc(p.year)}). ${title} <em>${journalVol}</em>${issue}${pages}.${link?` <a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a>`:''}`;
+ }
+ return esc(sourceGeneratedApa(s))
+}
 async function copyText(text,label='Copied'){
  const value=String(text||'').trim();if(!value){toast('Nothing to copy yet');return}
  try{await navigator.clipboard.writeText(value)}catch(e){const ta=document.createElement('textarea');ta.value=value;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}
  toast(label)
 }
-window.copySourceApa=id=>{const s=(state.sources||[]).find(x=>x.id===id);copyText(s?.apa||'','Full APA reference copied')};
+async function copyCitationRich(s,label='APA reference copied'){
+ const plain=sourceGeneratedApa(s),html=sourceGeneratedApaHtml(s);if(!plain)return toast('Nothing to copy yet');
+ try{
+   if(window.ClipboardItem&&navigator.clipboard?.write){const item=new ClipboardItem({'text/plain':new Blob([plain],{type:'text/plain'}),'text/html':new Blob([html],{type:'text/html'})});await navigator.clipboard.write([item]);toast(label);return}
+ }catch(e){console.warn('Rich citation copy unavailable; using plain text.',e)}
+ await copyText(plain,label)
+}
+window.copySourceApa=id=>{const s=(state.sources||[]).find(x=>x.id===id);if(s)copyCitationRich(s,'Formatted APA reference copied')};
 window.copySourceInText=id=>{const s=(state.sources||[]).find(x=>x.id===id);copyText(sourceParentheticalCitation(s),'In-text citation copied')};
 window.copySourceNarrative=id=>{const s=(state.sources||[]).find(x=>x.id===id);copyText(sourceNarrativeCitation(s),'Narrative citation copied')};
 function sourceCitationStarter(s,kind='found'){
@@ -519,10 +521,12 @@ function sourceCitationStarter(s,kind='found'){
  return`${citation} found that `;
 }
 window.copySourceStarter=(id,kind)=>{const s=(state.sources||[]).find(x=>x.id===id);copyText(sourceCitationStarter(s,kind),'Citation starter copied')};
-window.copyEditorApa=()=>copyText($('#sourceApa')?.value||'','Full APA reference copied');
-window.copyEditorInText=()=>copyText(sourceParentheticalCitation({authors:$('#sourceAuthors')?.value||'',date:$('#sourceDate')?.value||''}),'In-text citation copied');
-window.copyEditorNarrative=()=>copyText(sourceNarrativeCitation({authors:$('#sourceAuthors')?.value||'',date:$('#sourceDate')?.value||''}),'Narrative citation copied');
-window.copyEditorStarter=kind=>copyText(sourceCitationStarter({authors:$('#sourceAuthors')?.value||'',date:$('#sourceDate')?.value||''},kind),'Citation starter copied');
+function editorCitationSource(){return {title:$('#sourceTitle')?.value||'',authors:$('#sourceAuthors')?.value||'',apaAuthors:$('#sourceApaAuthors')?.value||'',date:$('#sourceDate')?.value||'',journal:$('#sourceJournal')?.value||'',publisher:$('#sourcePublisher')?.value||'',volume:$('#sourceVolume')?.value||'',issue:$('#sourceIssue')?.value||'',pages:$('#sourcePages')?.value||'',doi:$('#sourceDoi')?.value||'',apa:$('#sourceApa')?.value||'',url:normalizeSourceUrl($('#sourceUrl')?.value||''),sourceType:$('#sourceType')?.value||'Article / PDF'} }
+window.copyEditorApa=()=>copyCitationRich(editorCitationSource(),'Formatted APA reference copied');
+window.copyEditorInText=()=>copyText(sourceParentheticalCitation(editorCitationSource()),'In-text citation copied');
+window.copyEditorNarrative=()=>copyText(sourceNarrativeCitation(editorCitationSource()),'Narrative citation copied');
+window.copyEditorStarter=kind=>copyText(sourceCitationStarter(editorCitationSource(),kind),'Citation starter copied');
+function refreshEditorApaPreview(){const box=$('#sourceApaPreview');if(!box)return;const src=editorCitationSource(),html=sourceGeneratedApaHtml(src),plain=sourceGeneratedApa(src);if(!plain){box.classList.add('hidden');box.innerHTML='';return}box.innerHTML=html;box.classList.remove('hidden')}
 function sourcePaperUseCount(sourceId){return (state.paperUses||[]).filter(x=>x.sourceId===sourceId).length}
 function sourceIsUsedInPaper(source){
  if(!source)return false;
@@ -561,7 +565,7 @@ function renderPaperUses(){
  const uses=(state.paperUses||[]).slice().sort((a,b)=>{const order={Planned:0,Drafted:1,Used:2};return (order[a.status]??9)-(order[b.status]??9)||String(a.paperSection||'').localeCompare(String(b.paperSection||''))});
  const open=uses.filter(x=>x.status!=='Used').length;if($('#paperUseCount'))$('#paperUseCount').textContent=`${open} active`;
  if(!uses.length){list.innerHTML='<div class="annotation-empty">No paper-use cards yet. Open a source and choose <b>Use in paper</b> to connect evidence to the manuscript.</div>';return}
- list.innerHTML=uses.map(u=>{const s=state.sources.find(x=>x.id===u.sourceId);if(!s)return'';const pages=[...new Set((s.annotations||[]).filter(a=>(u.annotationIds||[]).includes(a.id)).map(a=>a.location).filter(Boolean))];return `<article class="paper-use-card" id="paper-use-${esc(u.id)}"><div class="paper-use-head"><div><span class="phase">${esc(u.paperSection||'Paper section not assigned')}</span><h3>${esc(u.point||'Paper use')}</h3><div class="meta">${esc(s.title||'Untitled source')}${sourceShortCitation(s)?' · '+esc(sourceShortCitation(s)):''}${pages.length?' · '+esc(pages.join(', ')):''}</div></div><select aria-label="Paper use status" onchange="setPaperUseStatus('${u.id}',this.value)"><option${u.status==='Planned'?' selected':''}>Planned</option><option${u.status==='Drafted'?' selected':''}>Drafted</option><option${u.status==='Used'?' selected':''}>Used</option></select></div>${s.apa?`<div class="citation paper-use-citation">${esc(s.apa)}</div>`:''}${paperUseEvidenceHtml(u)}<div class="card-actions"><button type="button" class="ghost" onclick="editPaperUse('${u.id}')">Edit</button><button type="button" class="ghost" onclick="editSource('${s.id}')">Open source</button><button type="button" class="ghost danger" onclick="deletePaperUse('${u.id}')">Delete</button></div></article>`}).join('');queueMicrotask(()=>hydrateResearchThumbnails(list))
+ list.innerHTML=uses.map(u=>{const s=state.sources.find(x=>x.id===u.sourceId);if(!s)return'';const pages=[...new Set((s.annotations||[]).filter(a=>(u.annotationIds||[]).includes(a.id)).map(a=>a.location).filter(Boolean))];return `<article class="paper-use-card" id="paper-use-${esc(u.id)}"><div class="paper-use-head"><div><span class="phase">${esc(u.paperSection||'Paper section not assigned')}</span><h3>${esc(u.point||'Paper use')}</h3><div class="meta">${esc(s.title||'Untitled source')}${sourceShortCitation(s)?' · '+esc(sourceShortCitation(s)):''}${pages.length?' · '+esc(pages.join(', ')):''}</div></div><select aria-label="Paper use status" onchange="setPaperUseStatus('${u.id}',this.value)"><option${u.status==='Planned'?' selected':''}>Planned</option><option${u.status==='Drafted'?' selected':''}>Drafted</option><option${u.status==='Used'?' selected':''}>Used</option></select></div>${sourceGeneratedApa(s)?`<div class="citation paper-use-citation">${sourceGeneratedApaHtml(s)}</div>`:''}${paperUseEvidenceHtml(u)}<div class="card-actions"><button type="button" class="ghost" onclick="editPaperUse('${u.id}')">Edit</button><button type="button" class="ghost" onclick="editSource('${s.id}')">Open source</button><button type="button" class="ghost danger" onclick="deletePaperUse('${u.id}')">Delete</button></div></article>`}).join('');queueMicrotask(()=>hydrateResearchThumbnails(list))
 }
 function paperSectionOptions(){return [...new Set((state.outline||[]).map(o=>[o.chapter,o.section].filter(Boolean).join(' · ')).filter(Boolean))]}
 function fillPaperUseSections(selected=''){
@@ -572,8 +576,8 @@ function paperUseAnnotationChoices(sourceId,selected=[]){
  box.innerHTML=anns.length?anns.map(a=>`<label class="paper-use-check"><input type="checkbox" value="${esc(a.id)}"${chosen.has(a.id)?' checked':''}><span class="paper-use-choice-content">${annotationVisualHtml(a,true)}<span><b>${esc(a.location||'No page')}</b>${a.type?' · '+esc(a.type):''}<br>${esc(String(a.text||'').slice(0,240))}${String(a.text||'').length>240?'…':''}</span></span></label>`).join(''):'<div class="annotation-empty">This source does not have any annotations yet. You can still create a paper-use card, or add notes to the source first.</div>';queueMicrotask(()=>hydrateResearchThumbnails(box))
 }
 function clearPaperUse(){for(const id of ['paperUseId','paperUseSourceId','paperUsePoint']){const el=$('#'+id);if(el)el.value=''}if($('#paperUseStatus'))$('#paperUseStatus').value='Planned';fillPaperUseSections('');if($('#paperUseSourceLabel'))$('#paperUseSourceLabel').textContent='';if($('#paperUseCitation'))$('#paperUseCitation').textContent='';if($('#paperUseAnnotations'))$('#paperUseAnnotations').innerHTML='';$('#paperUseEditor')?.classList.add('hidden')}
-window.useSourceInPaper=sourceId=>{const s=state.sources.find(x=>x.id===sourceId);if(!s)return;clearPaperUse();$('#paperUseSourceId').value=sourceId;$('#paperUseSourceLabel').textContent=s.title||'Untitled source';$('#paperUseCitation').textContent=s.apa||sourceShortCitation(s)||'';fillPaperUseSections(s.paperSection||'');paperUseAnnotationChoices(sourceId,[]);$('#paperUseEditorTitle').textContent='Use source in paper';$('#paperUseEditor').classList.remove('hidden');$('#paperUseEditor').scrollIntoView({behavior:'smooth',block:'start'})}
-window.editPaperUse=id=>{const u=(state.paperUses||[]).find(x=>x.id===id);if(!u)return;const s=state.sources.find(x=>x.id===u.sourceId);if(!s)return;clearPaperUse();$('#paperUseId').value=u.id;$('#paperUseSourceId').value=u.sourceId;$('#paperUseSourceLabel').textContent=s.title||'Untitled source';$('#paperUseCitation').textContent=s.apa||sourceShortCitation(s)||'';$('#paperUsePoint').value=u.point||'';$('#paperUseStatus').value=u.status||'Planned';fillPaperUseSections(u.paperSection||'');paperUseAnnotationChoices(u.sourceId,u.annotationIds||[]);$('#paperUseEditorTitle').textContent='Edit paper use';$('#paperUseEditor').classList.remove('hidden');$('#paperUseEditor').scrollIntoView({behavior:'smooth',block:'start'})}
+window.useSourceInPaper=sourceId=>{const s=state.sources.find(x=>x.id===sourceId);if(!s)return;clearPaperUse();$('#paperUseSourceId').value=sourceId;$('#paperUseSourceLabel').textContent=s.title||'Untitled source';$('#paperUseCitation').innerHTML=sourceGeneratedApa(s)?sourceGeneratedApaHtml(s):esc(sourceShortCitation(s)||'');fillPaperUseSections(s.paperSection||'');paperUseAnnotationChoices(sourceId,[]);$('#paperUseEditorTitle').textContent='Use source in paper';$('#paperUseEditor').classList.remove('hidden');$('#paperUseEditor').scrollIntoView({behavior:'smooth',block:'start'})}
+window.editPaperUse=id=>{const u=(state.paperUses||[]).find(x=>x.id===id);if(!u)return;const s=state.sources.find(x=>x.id===u.sourceId);if(!s)return;clearPaperUse();$('#paperUseId').value=u.id;$('#paperUseSourceId').value=u.sourceId;$('#paperUseSourceLabel').textContent=s.title||'Untitled source';$('#paperUseCitation').innerHTML=sourceGeneratedApa(s)?sourceGeneratedApaHtml(s):esc(sourceShortCitation(s)||'');$('#paperUsePoint').value=u.point||'';$('#paperUseStatus').value=u.status||'Planned';fillPaperUseSections(u.paperSection||'');paperUseAnnotationChoices(u.sourceId,u.annotationIds||[]);$('#paperUseEditorTitle').textContent='Edit paper use';$('#paperUseEditor').classList.remove('hidden');$('#paperUseEditor').scrollIntoView({behavior:'smooth',block:'start'})}
 window.setPaperUseStatus=async(id,status)=>{const u=(state.paperUses||[]).find(x=>x.id===id);if(!u)return;u.status=status;u.updatedAt=new Date().toISOString();await persist();renderPaperUses();toast('Paper-use status updated')}
 window.deletePaperUse=async id=>{const u=(state.paperUses||[]).find(x=>x.id===id);if(!u||!confirm('Delete this paper-use card?'))return;addTombstone('paperUses',u);state.paperUses=state.paperUses.filter(x=>x.id!==id);await persist();renderPaperUses();renderSources();toast('Paper-use card deleted')}
 
@@ -587,7 +591,7 @@ function renderSources(){
   return;
  }
  const groups=sourceFolders().map(folder=>[folder,items.filter(s=>s.theme===folder)]).filter(([,g])=>g.length);const unfiled=items.filter(s=>!s.theme);if(unfiled.length)groups.push(['Unfiled / Research Artifacts',unfiled]);
- list.innerHTML=groups.map(([folder,group])=>`<section class="source-folder"><div class="source-folder-head"><span class="folder-icon" aria-hidden="true">📁</span><div><h2>${esc(folder)}</h2><div class="meta">${group.length} item${group.length===1?'':'s'}</div></div></div><div class="source-folder-cards">${group.map(s=>{const anns=sourceAnnotations(s),atts=visibleSourceAttachments(s.id),href=safeHref(s.url);return `<article class="card source-card" id="source-card-${esc(s.id)}" tabindex="-1"><div class="card-head"><div><span class="phase">${esc(s.sourceType||'Article / PDF')}</span><h3>${esc(s.title)}</h3><div class="meta">${esc(s.authors||'')}${s.date?' · '+esc(s.date):''}${s.publisher?' · '+esc(s.publisher):''}</div></div><div><span class="status-pill">${esc(s.status||'Not Started')}</span> <span class="status-pill">${esc(s.priority||'Medium')}</span></div></div>${(s.citationReview||[]).length?`<div class="citation-review"><b>Citation needs review</b><p>${s.citationReview.map(esc).join('<br>')}</p></div>`:''}${s.apa?`<div class="citation source-citation">${esc(s.apa)}</div><div class="citation-copy-actions"><button type="button" class="ghost" onclick="copySourceInText('${s.id}')">Copy in-text citation</button><button type="button" class="ghost" onclick="copySourceNarrative('${s.id}')">Copy narrative citation</button><details class="citation-starter-menu"><summary>Copy citation starter</summary><div class="citation-starter-options"><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','found')">Found that…</button><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','according')">According to…</button><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','argued')">Argued that…</button></div></details><button type="button" class="ghost" onclick="copySourceApa('${s.id}')">Copy APA reference</button></div>`:''}<div class="source-grid"><div><h4>Key argument</h4><p>${esc(s.keyArgument||'')}</p></div><div><h4>Connection to PromptCraft</h4><p>${esc(s.connection||'')}</p></div><div><h4>Methodology</h4><p>${esc(s.methodology||'')}</p></div><div><h4>Paper connection</h4><p>${esc(s.paperSection||'Not assigned yet')}</p>${href?`<p><a href="${esc(href)}" target="_blank" rel="noopener">Open source link</a></p>`:''}</div></div>${s.tags?.length?`<div class="tags">${s.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}<div class="source-section"><div class="source-section-head"><h4>Documents, diagrams & images</h4><button type="button" class="ghost" onclick="addSourceAttachment('${s.id}')">Add file</button></div>${atts.length?atts.map(attachmentHtml).join(''):'<div class="annotation-empty">No file attached yet. Add the PDF, Word document, diagram, screenshot, table, or other paper material here.</div>'}</div><div class="source-section"><div class="source-section-head"><h4>Notes & annotations</h4><button type="button" onclick="addSourceAnnotation('${s.id}')">Add note</button></div>${anns.length?anns.map(a=>annotationHtml(s,a)).join(''):'<div class="annotation-empty">No notes yet. Page numbers, figures, tables, and section locations can be recorded with each note.</div>'}</div><div class="card-actions"><button type="button" onclick="useSourceInPaper('${s.id}')">Use in paper${sourcePaperUseCount(s.id)?` (${sourcePaperUseCount(s.id)})`:``}</button><button type="button" class="ghost" onclick="editSource('${s.id}')">Edit source</button><button type="button" class="ghost danger" onclick="deleteSource('${s.id}')">Delete</button></div></article>`}).join('')}</div></section>`).join('')
+ list.innerHTML=groups.map(([folder,group])=>`<section class="source-folder"><div class="source-folder-head"><span class="folder-icon" aria-hidden="true">📁</span><div><h2>${esc(folder)}</h2><div class="meta">${group.length} item${group.length===1?'':'s'}</div></div></div><div class="source-folder-cards">${group.map(s=>{const anns=sourceAnnotations(s),atts=visibleSourceAttachments(s.id),href=safeHref(s.url);return `<article class="card source-card" id="source-card-${esc(s.id)}" tabindex="-1"><div class="card-head"><div><span class="phase">${esc(s.sourceType||'Article / PDF')}</span><h3>${esc(s.title)}</h3><div class="meta">${esc(s.authors||'')}${s.date?' · '+esc(s.date):''}${(s.journal||s.publisher)?' · '+esc(s.journal||s.publisher):''}</div></div><div><span class="status-pill">${esc(s.status||'Not Started')}</span> <span class="status-pill">${esc(s.priority||'Medium')}</span></div></div>${(s.citationReview||[]).length?`<div class="citation-review"><b>Citation needs review</b><p>${s.citationReview.map(esc).join('<br>')}</p></div>`:''}${sourceGeneratedApa(s)?`<div class="citation source-citation">${sourceGeneratedApaHtml(s)}</div><div class="citation-copy-actions"><button type="button" class="ghost" onclick="copySourceInText('${s.id}')">Copy in-text citation</button><button type="button" class="ghost" onclick="copySourceNarrative('${s.id}')">Copy narrative citation</button><details class="citation-starter-menu"><summary>Copy citation starter</summary><div class="citation-starter-options"><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','found')">Found that…</button><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','according')">According to…</button><button type="button" class="ghost" onclick="copySourceStarter('${s.id}','argued')">Argued that…</button></div></details><button type="button" class="ghost" onclick="copySourceApa('${s.id}')">Copy APA reference</button></div>`:''}<div class="source-grid"><div><h4>Key argument</h4><p>${esc(s.keyArgument||'')}</p></div><div><h4>Connection to PromptCraft</h4><p>${esc(s.connection||'')}</p></div><div><h4>Methodology</h4><p>${esc(s.methodology||'')}</p></div><div><h4>Paper connection</h4><p>${esc(s.paperSection||'Not assigned yet')}</p>${href?`<p><a href="${esc(href)}" target="_blank" rel="noopener">Open source link</a></p>`:''}</div></div>${s.tags?.length?`<div class="tags">${s.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}<div class="source-section"><div class="source-section-head"><h4>Documents, diagrams & images</h4><button type="button" class="ghost" onclick="addSourceAttachment('${s.id}')">Add file</button></div>${atts.length?atts.map(attachmentHtml).join(''):'<div class="annotation-empty">No file attached yet. Add the PDF, Word document, diagram, screenshot, table, or other paper material here.</div>'}</div><div class="source-section"><div class="source-section-head"><h4>Notes & annotations</h4><button type="button" onclick="addSourceAnnotation('${s.id}')">Add note</button></div>${anns.length?anns.map(a=>annotationHtml(s,a)).join(''):'<div class="annotation-empty">No notes yet. Page numbers, figures, tables, and section locations can be recorded with each note.</div>'}</div><div class="card-actions"><button type="button" onclick="useSourceInPaper('${s.id}')">Use in paper${sourcePaperUseCount(s.id)?` (${sourcePaperUseCount(s.id)})`:``}</button><button type="button" class="ghost" onclick="editSource('${s.id}')">Edit source</button><button type="button" class="ghost danger" onclick="deleteSource('${s.id}')">Delete</button></div></article>`}).join('')}</div></section>`).join('')
  clearResearchThumbUrls();hydrateResearchThumbnails(list);
 }
 function sourceEditorId(){return $('#sourceId')?.value||''}
@@ -701,7 +705,7 @@ function loadCitationImportIntoEditor(){
  try{
   const {source,annotations}=parseCitationImport($('#citationImportText').value);
   refreshSourceOptions();
-  const map=[['sourceTheme','theme'],['sourceType','sourceType'],['sourcePriority','priority'],['sourceTitle','title'],['sourceAuthors','authors'],['sourceDate','date'],['sourcePublisher','publisher'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url'],['sourceArchive','archiveFile']];
+  const map=[['sourceTheme','theme'],['sourceType','sourceType'],['sourcePriority','priority'],['sourceTitle','title'],['sourceAuthors','authors'],['sourceApaAuthors','apaAuthors'],['sourceDate','date'],['sourceJournal','journal'],['sourcePublisher','publisher'],['sourceVolume','volume'],['sourceIssue','issue'],['sourcePages','pages'],['sourceDoi','doi'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url'],['sourceArchive','archiveFile']];
   for(const [id,key] of map){const el=$('#'+id);if(!el)continue;const val=source[key]||'';if(id==='sourceTheme'&&val&&!SOURCE_FOLDERS.includes(val)){el.value=''}else if(id==='sourceType'&&val&&![...el.options].some(o=>o.value===val)){el.value='Other'}else if(id==='sourcePriority'&&!['High','Medium','Low'].includes(val)){el.value='High'}else el.value=val}
   $('#sourceStatus').value='Not Started';$('#sourceTags').value=(source.tags||[]).join(', ');
   pendingImportedAnnotations=annotations;
@@ -709,7 +713,7 @@ function loadCitationImportIntoEditor(){
   $('#sourceFormPanel').scrollIntoView({behavior:'smooth',block:'start'});toast('Source package loaded for review')
  }catch(e){toast(e.message||'Could not import citation package')}
 }
-function clearSource(){pendingImportedAnnotations=[];hideCitationImport();for(const id of ['sourceId','sourceTitle','sourceAuthors','sourceDate','sourcePublisher','sourceApa','sourceArgument','sourceConnection','sourceMethod','sourcePaperSection','sourceUrl','sourceTags','sourceArchive','sourceAutoLookup']){const el=$('#'+id);if(el)el.value=''}if($('#sourceTheme'))$('#sourceTheme').value='';$('#sourcePriority').value='High';$('#sourceStatus').value='Not Started';$('#sourceType').value='Article / PDF';$('#sourceFile').value='';$('#sourceFormTitle').textContent='Add research source';setSourceAnalyzeState(false,'');const ap=$('#sourceAutoPreview');if(ap)ap.classList.add('hidden');if($('#sourceAutoPreviewContent'))$('#sourceAutoPreviewContent').innerHTML='';refreshSourceEditorRelated('')}
+function clearSource(){pendingImportedAnnotations=[];hideCitationImport();for(const id of ['sourceId','sourceTitle','sourceAuthors','sourceApaAuthors','sourceDate','sourceJournal','sourcePublisher','sourceVolume','sourceIssue','sourcePages','sourceDoi','sourceApa','sourceArgument','sourceConnection','sourceMethod','sourcePaperSection','sourceUrl','sourceTags','sourceArchive','sourceAutoLookup']){const el=$('#'+id);if(el)el.value=''}if($('#sourceTheme'))$('#sourceTheme').value='';$('#sourcePriority').value='High';$('#sourceStatus').value='Not Started';$('#sourceType').value='Article / PDF';$('#sourceFile').value='';$('#sourceFormTitle').textContent='Add research source';setSourceAnalyzeState(false,'');const ap=$('#sourceAutoPreview');if(ap)ap.classList.add('hidden');if($('#sourceAutoPreviewContent'))$('#sourceAutoPreviewContent').innerHTML='';refreshSourceEditorRelated('');refreshEditorApaPreview()}
 function returnToResearchSource(id){
  const card=document.getElementById(`source-card-${id}`);
  if(!card)return;
@@ -719,7 +723,7 @@ function returnToResearchSource(id){
  setTimeout(()=>card.classList.remove('source-card-return'),1400);
 }
 
-window.editSource=id=>{const s=state.sources.find(x=>x.id===id);if(!s)return;researchSourceView='all';renderSourceNavigation();pendingImportedAnnotations=[];hideCitationImport();setSourceAnalyzeState(false,'');if($('#sourceAutoLookup'))$('#sourceAutoLookup').value='';refreshSourceOptions();for(const [fid,key] of [['sourceId','id'],['sourceTitle','title'],['sourceAuthors','authors'],['sourceDate','date'],['sourcePublisher','publisher'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url'],['sourceArchive','archiveFile'],['sourceTheme','theme'],['sourcePriority','priority'],['sourceStatus','status'],['sourceType','sourceType']]){const el=$('#'+fid);if(el)el.value=s[key]||''}$('#sourceTags').value=(s.tags||[]).join(', ');$('#sourceFile').value='';$('#sourceFormTitle').textContent='Edit research source';refreshSourceEditorRelated(id);$('#sourceFormPanel').scrollIntoView({behavior:'smooth',block:'start'})}
+window.editSource=id=>{const s=state.sources.find(x=>x.id===id);if(!s)return;researchSourceView='all';renderSourceNavigation();pendingImportedAnnotations=[];hideCitationImport();setSourceAnalyzeState(false,'');if($('#sourceAutoLookup'))$('#sourceAutoLookup').value='';refreshSourceOptions();for(const [fid,key] of [['sourceId','id'],['sourceTitle','title'],['sourceAuthors','authors'],['sourceApaAuthors','apaAuthors'],['sourceDate','date'],['sourceJournal','journal'],['sourcePublisher','publisher'],['sourceVolume','volume'],['sourceIssue','issue'],['sourcePages','pages'],['sourceDoi','doi'],['sourceApa','apa'],['sourceArgument','keyArgument'],['sourceConnection','connection'],['sourceMethod','methodology'],['sourcePaperSection','paperSection'],['sourceUrl','url'],['sourceArchive','archiveFile'],['sourceTheme','theme'],['sourcePriority','priority'],['sourceStatus','status'],['sourceType','sourceType']]){const el=$('#'+fid);if(el)el.value=s[key]||''}$('#sourceTags').value=(s.tags||[]).join(', ');$('#sourceFile').value='';$('#sourceFormTitle').textContent='Edit research source';refreshSourceEditorRelated(id);refreshEditorApaPreview();$('#sourceFormPanel').scrollIntoView({behavior:'smooth',block:'start'})}
 window.deleteSource=async id=>{const item=state.sources.find(x=>x.id===id);if(!item||!confirm(`Delete this source record only: “${item.title}”? Its attached files and notes will also be removed. Other records with the same title will remain.`))return;try{for(const m of sourceAttachments(id)){await deleteResearchAttachmentFile(m);addTombstone('researchMaterials',m)}state.researchMaterials=(state.researchMaterials||[]).filter(m=>m.sourceId!==id);for(const u of (state.paperUses||[]).filter(x=>x.sourceId===id))addTombstone('paperUses',u);state.paperUses=(state.paperUses||[]).filter(x=>x.sourceId!==id);addTombstone('sources',item);state.sources=state.sources.filter(x=>x.id!==id);await persist();renderSources();renderPaperUses();toast('Research source deleted')}catch(e){toast(e.message)}}
 function clearSourceAnnotation(){for(const id of ['sourceAnnotationSourceId','sourceAnnotationId','annotationLocation','annotationText','annotationInterpretation','annotationPaperUse','annotationTags']){const el=$('#'+id);if(el)el.value=''}if($('#annotationType'))$('#annotationType').value=ANNOTATION_TYPES[0];if($('#annotationVisualFile'))$('#annotationVisualFile').value='';if($('#annotationVisualRemove'))$('#annotationVisualRemove').checked=false;if($('#annotationVisualCurrent')){$('#annotationVisualCurrent').innerHTML='';$('#annotationVisualCurrent').classList.add('hidden')}if($('#annotationVisualRemoveWrap'))$('#annotationVisualRemoveWrap').classList.add('hidden');hideProgress('annotationVisualProgress');$('#sourceAnnotationEditor')?.classList.add('hidden')}
 function loadAnnotationVisualEditor(a){const m=annotationVisualAttachment(a),box=$('#annotationVisualCurrent'),remove=$('#annotationVisualRemoveWrap');if(!box||!remove)return;if(m){box.innerHTML=`<div class="annotation-current-visual">${annotationVisualHtml(a)}<div class="small">Choose a new image below to replace it, or check Remove current visual.</div></div>`;box.classList.remove('hidden');remove.classList.remove('hidden');queueMicrotask(()=>hydrateResearchThumbnails(box))}else{box.innerHTML='';box.classList.add('hidden');remove.classList.add('hidden')}}
@@ -978,7 +982,8 @@ $('#sourceForm').onsubmit=async e=>{
  if(!title){if(!existingId)$('#sourceId').value='';return toast('Add an article/source name or choose a document first.')}
  setSourceSaveState(true,file?'Saving source and attaching document…':'Saving source…');
  toast('Saving source…');
- const obj={...(existing||{}),libraryCleanupVersion:1,id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,sourceType:$('#sourceType').value,title,authors:$('#sourceAuthors').value.trim(),date:$('#sourceDate').value.trim(),publisher:$('#sourcePublisher').value.trim(),apa:$('#sourceApa').value.trim(),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,paperSection:$('#sourcePaperSection').value.trim(),url:normalizeSourceUrl($('#sourceUrl').value),tags:$('#sourceTags').value.split(',').map(x=>x.trim()).filter(Boolean),archiveFile:$('#sourceArchive').value.trim(),annotations:[...(existing?.annotations||[]),...pendingImportedAnnotations.filter(a=>!(existing?.annotations||[]).some(x=>`${x.location||''}|${x.text||''}`===`${a.location||''}|${a.text||''}`))],created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const citationParts=sourceCitationParts(editorCitationSource());
+ const obj={...(existing||{}),libraryCleanupVersion:1,id,theme:$('#sourceTheme').value,priority:$('#sourcePriority').value,sourceType:$('#sourceType').value,title,authors:$('#sourceAuthors').value.trim(),apaAuthors:citationParts.authors,date:$('#sourceDate').value.trim(),journal:citationParts.journal,publisher:$('#sourcePublisher').value.trim(),volume:citationParts.volume,issue:citationParts.issue,pages:citationParts.pages,doi:citationParts.doi,apa:sourceGeneratedApa(editorCitationSource()),keyArgument:$('#sourceArgument').value.trim(),connection:$('#sourceConnection').value.trim(),methodology:$('#sourceMethod').value.trim(),status:$('#sourceStatus').value,paperSection:$('#sourcePaperSection').value.trim(),url:normalizeSourceUrl($('#sourceUrl').value),tags:$('#sourceTags').value.split(',').map(x=>x.trim()).filter(Boolean),archiveFile:$('#sourceArchive').value.trim(),annotations:[...(existing?.annotations||[]),...pendingImportedAnnotations.filter(a=>!(existing?.annotations||[]).some(x=>`${x.location||''}|${x.text||''}`===`${a.location||''}|${a.text||''}`))],created:existing?.created||new Date().toISOString(),updatedAt:new Date().toISOString()};
  clearTombstonesFor('sources',obj);
  const i=state.sources.findIndex(x=>x.id===id);if(i>=0)state.sources[i]=obj;else state.sources.push(obj);
  const currentPrimary=(state.researchMaterials||[]).find(m=>m.sourceId===id&&m.role==='primary');
@@ -1067,6 +1072,8 @@ $('#paperBackupForm').onsubmit=async e=>{
  }catch(err){hideProgress('paperBackupProgress');toast(err.message||'Paper backup could not be saved');console.error(err)}
 };
 
+for(const id of ['sourceTitle','sourceAuthors','sourceDate','sourceJournal','sourcePublisher','sourceVolume','sourceIssue','sourcePages','sourceDoi','sourceApa','sourceUrl','sourceType'])$('#'+id)?.addEventListener('input',refreshEditorApaPreview);
+$('#sourceType')?.addEventListener('change',refreshEditorApaPreview);
 $('#sourceFile')?.addEventListener('change',e=>{const file=e.target.files?.[0];if(file&&!$('#sourceTitle').value.trim())$('#sourceTitle').value=fileBaseName(file.name)});
 $('#paperBackupFile')?.addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;if(!$('#paperBackupVersion').value.trim())$('#paperBackupVersion').value=`Working Draft ${today()}`;if(!$('#paperBackupTitle').value.trim())$('#paperBackupTitle').value=fileBaseName(file.name)});
 

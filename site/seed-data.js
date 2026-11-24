@@ -1,64 +1,6 @@
 window.PROMPTCRAFT_SEED = {
   "logs": [
     {
-      "id": "log-2026-11-18-github-snapshots",
-      "date": "2026-11-18",
-      "phase": "Prototype",
-      "title": "Current game and Research Hub GitHub recovery snapshots created",
-      "what": "Created two point-in-time recovery references as separate GitHub branches on November 18, 2026. The active PromptCraft game repository (shanelnumber5/promptcraft-next-main) was preserved as backup/2026-11-18-current-game at commit 02f4d01d294921aacc9c6227c74355da29326ad0. The Research Hub repository (shanelnumber5/promptcraft-research-log) was preserved as backup/2026-11-18-research-hub at commit 4258dbb9bd17e287edebe3aa13ad1c76caaceb4f, following the Development Log interface refactor. Both branches preserve the corresponding committed source files and version history at the selected revision; they do not include uncommitted changes, browser-local data, Netlify Blobs, or live cloud-state records. No binary ZIP was uploaded to the Hub Project Backups storage in this operation.",
-      "why": "This milestone establishes reproducible Git-based restoration points for the current game and the Research Hub before additional modifications. Distinguishing code snapshots from a full research-data archive prevents the Git backup from being mistaken for a complete preservation of the Hub's cloud-synchronized records and screenshot bytes. The two branches are accessible independently and should be retained for recovery and longitudinal development documentation.",
-      "tags": [
-        "backup",
-        "GitHub",
-        "game source",
-        "Research Hub",
-        "version control",
-        "recovery point",
-        "November 2026"
-      ],
-      "images": []
-    },
-    {
-      "id": "log-2026-11-18-development-log-refactor",
-      "date": "2026-11-18",
-      "phase": "Iteration",
-      "title": "Development Log interface and formatting refactored",
-      "what": "Refactored the Research Hub Development Log interface to improve readability and navigation without changing historical records. Entries are grouped by month and remain ordered newest first; each entry now displays the date before its category and title, with the development change and rationale presented as full-width reading sections. Added search-result counts, more descriptive search controls, a collapsible add/edit form, improved responsive spacing and typography, and deferred loading of below-the-fold development screenshots. Revised interface terminology from phases to categories. Changes were committed to the Research Hub GitHub repository; publication to Netlify and live cloud-state verification remain separate steps.",
-      "why": "The Development Log had grown into a substantial chronological record, and its two-column narrative cards, prominent always-open form, and immediate loading of attached screenshots made reviewing the history unnecessarily difficult. These changes prioritize legibility, date-by-date review, and faster access to evidence while preserving source records, user annotations, images, and backups. Historical entries were not rewritten; older terminology should remain part of the authentic development record.",
-      "tags": [
-        "Development Log",
-        "Research Hub",
-        "interface refactor",
-        "responsive layout",
-        "visual history",
-        "performance",
-        "date grouping",
-        "data preservation"
-      ],
-      "images": []
-    },
-    {
-      "id": "log-2026-11-18-openai-babbage-review",
-      "date": "2026-11-18",
-      "phase": "Reflection",
-      "title": "OpenAI Babbage API integration reviewed and retained",
-      "what": "Reviewed the active PromptCraft game repository (shanelnumber5/promptcraft-next-main) to confirm Babbage's AI provider and server-side integration. The Netlify function netlify/functions/babbage.js identifies OpenAI as the provider, calls the OpenAI Responses API, reads OPENAI_API_KEY from server-side environment variables, and uses the configurable OPENAI_MODEL value with a default of gpt-5.6-terra. The function identifies proxy version V373. No provider migration or model change was made. The deployed API key, runtime model availability, and live response performance were not tested during this review.",
-      "why": "The review established that continuing to use OpenAI does not require replacing PromptCraft's existing AI architecture. Keeping the key server-side avoids exposing credentials in the browser and maintains separation between participant-facing gameplay and external AI services. Before changing providers, the project should assess feedback quality, response speed, cost, reliability, and consistency. For research documentation, record the model and prompt versions and distinguish live AI responses from fallback output so changes in feedback are not mistaken for changes in educator reasoning.",
-      "tags": [
-        "AI architecture",
-        "OpenAI",
-        "Responses API",
-        "Babbage",
-        "Netlify",
-        "serverless proxy",
-        "model configuration",
-        "research instrumentation",
-        "provider review",
-        "no migration"
-      ],
-      "images": []
-    },
-    {
       "phase": "Conceptualization",
       "date": "April 24, 2026",
       "title": "PromptCraft concept originated",
@@ -439,6 +381,81 @@ window.PROMPTCRAFT_SEED = {
         "app-ui.js",
         "index.html",
         "safe refactor"
+      ]
+    },
+    {
+      "phase": "Iteration",
+      "date": "2026-11-17",
+      "title": "Babbage Review connected to Chat MT AI for live collaborative feedback",
+      "what": "PromptCraft's Review workflow was connected to Chat MT AI so Babbage can provide live analysis of the participant's actual instructional-design reasoning and draft rather than relying only on canned or simulated responses. The implemented sequence preserves distinct roles for Babbage as the analytical collaborator, Maya as the learner-perspective voice, and Pixel as the instructional guide who helps close the loop. Participant-facing references to the AI service were also standardized around the Chat MT AI name.",
+      "why": "A central design goal of PromptCraft is to help educators critically collaborate with AI while retaining professional judgment. Live feedback makes the review responsive to the participant's actual design choices while preserving the distinction between analysis and decision making. Clarifying the roles of Babbage, Maya, and Pixel also helps prevent AI feedback from becoming the final instructional decision.",
+      "tags": [
+        "Chat MT AI",
+        "Babbage",
+        "Maya",
+        "Pixel",
+        "AI collaboration",
+        "live feedback",
+        "Review workflow",
+        "professional judgment",
+        "instructional-design reasoning"
+      ]
+    },
+    {
+      "phase": "Design",
+      "date": "2026-11-17",
+      "title": "AI review requests moved to asynchronous background processing",
+      "what": "Longer Babbage requests exposed synchronous request limits and gateway-timeout risk. The AI workflow was redesigned around background processing and polling so PromptCraft can start an AI job, check for completion, support cancellation, and clean up temporary results instead of requiring one browser request to remain open for the entire analysis.",
+      "why": "AI response time is variable and should not interrupt the participant's reasoning process. Moving longer analyses into an asynchronous workflow improves reliability, reduces repeated submissions, and helps preserve a consistent review experience even when model response times vary.",
+      "tags": [
+        "Chat MT AI",
+        "asynchronous processing",
+        "polling",
+        "Babbage",
+        "performance",
+        "timeout",
+        "AI architecture",
+        "intervention consistency",
+        "reliability"
+      ]
+    },
+    {
+      "phase": "Iteration",
+      "date": "2026-11-18",
+      "title": "Babbage, Maya, and Pixel feedback sequence synchronized and reformatted",
+      "what": "The Review feedback sequence was refined so transitions among Babbage, Maya, and Pixel occur predictably without delayed or overlapping callbacks. Maya now appears when her portion of the sequence begins, and moving to Pixel explicitly cancels pending feedback callbacks. AI-generated Markdown rendering was also corrected so Babbage responses display as readable paragraphs, headings, emphasis, and lists across review, clarification, history, and preview surfaces.",
+      "why": "The instructional sequence depends on participants understanding who is responding and why. Delayed character appearances or overlapping callbacks blur those roles, while poorly rendered AI output increases cognitive load. The refinement strengthens the intended sequence of participant reasoning, Babbage analysis, Maya learner perspective, and Pixel synthesis or closure.",
+      "tags": [
+        "Babbage",
+        "Maya",
+        "Pixel",
+        "Review workflow",
+        "Markdown",
+        "feedback formatting",
+        "timing",
+        "callback cleanup",
+        "cognitive load",
+        "AI collaboration"
+      ]
+    },
+    {
+      "phase": "Iteration",
+      "date": "2026-11-18",
+      "title": "PromptCraft loading and AI-response handling refactored for faster, more stable interaction",
+      "what": "A broader performance refactor addressed slow loading during Babbage analysis and Maya or Pixel feedback. Image loading was changed from broad preloading to a targeted strategy that prioritizes upcoming scenes and limits concurrent downloads. AI-response handling was consolidated, stale-request and loading race conditions were addressed, and cancellation and cleanup behavior was strengthened during transitions among Babbage, Maya, and Pixel.",
+      "why": "PromptCraft increasingly depends on visual characters, scene changes, AI responses, and multi-stage feedback. Unnecessary preloading and competing asynchronous processes were creating delays that interfered with the learning experience. Treating performance and race-condition cleanup as instructional-usability work helps participants stay focused on the design problem and reduces the chance that outdated responses or character states alter the intended intervention sequence.",
+      "tags": [
+        "performance",
+        "image loading",
+        "preloading",
+        "concurrency",
+        "stale requests",
+        "race conditions",
+        "AI response handling",
+        "Babbage",
+        "Maya",
+        "Pixel",
+        "refactor"
       ]
     }
   ],
@@ -1535,470 +1552,377 @@ window.PROMPTCRAFT_SEED = {
   ],
   "themes": [
     {
-      "id": "plan-v2-theme-01",
-      "theme": "Educator AI Literacy & Critical Evaluation",
-      "question": "What knowledge and evaluative practices do educators need to use generative AI responsibly in instructional work, and how can professional learning move beyond prompt construction toward critical evaluation of AI output?",
-      "searchTerms": "educator AI literacy framework; generative AI literacy higher education faculty; critical evaluation AI output educators; AI hallucination overreliance education; responsible generative AI teaching",
-      "chapters": "Chapter 1: Introduction and Context\nChapter 2: Review of Literature\nChapter 3: Intervention rationale",
-      "scenarios": "Across PromptCraft; especially evidence inspection, prediction, Babbage analysis, revision, and evaluation activities",
-      "sourcesFound": 4,
-      "status": "In Progress"
-    },
-    {
-      "id": "plan-v2-theme-02",
-      "theme": "Professional Judgment, Agency & Human-AI Decision Making",
-      "question": "How can educators use AI as a source of support or evidence without surrendering responsibility for instructional decisions, and what design features help preserve professional judgment?",
-      "searchTerms": "teacher agency generative AI; educator professional judgment AI; human AI decision making education; automation bias educators; human oversight generative AI teaching",
-      "chapters": "Chapter 1: Problem and significance\nChapter 2: Professional judgment and educator agency\nChapter 3: PromptCraft design framework",
-      "scenarios": "S1 reference implementation; human diagnosis before AI consultation; Babbage as analytical support; instructor verification and final responsibility",
-      "sourcesFound": 2,
-      "status": "In Progress"
-    },
-    {
-      "id": "plan-v2-theme-03",
-      "theme": "Authentic Scenario-Based & Game-Based Professional Learning",
-      "question": "What evidence supports realistic scenarios, simulations, serious games, and experiential learning for adult professional learning, and which game mechanics support decision-making rather than distract from it?",
-      "searchTerms": "scenario based learning professional development; serious games adult learning higher education; simulation faculty development; experiential learning educators; game based professional learning",
-      "chapters": "Chapter 2: Scenario-based and game-based learning\nChapter 3: Intervention development and design",
-      "scenarios": "Visual-novel framing, Canvas evidence cases, staged decisions, consequences, Babbage analysis, transfer tasks, Teaching Progress",
-      "sourcesFound": 3,
-      "status": "In Progress"
-    },
-    {
-      "id": "plan-v2-theme-04",
-      "theme": "Instructional Design, Canvas, Accessibility & OSCQR",
-      "question": "How do established online-course design principles, accessibility practices, and OSCQR inform the authentic instructional problems used in PromptCraft without turning OSCQR into an unsupported outcome measure?",
-      "searchTerms": "OSCQR online course design research; accessibility online course design higher education; Canvas course organization student navigation; alignment online learning design; OSCQR validity research",
-      "chapters": "Chapter 1: Professional context\nChapter 2: Instructional design and accessibility\nChapter 3: Intervention design and content validity",
-      "scenarios": "S1 Start With the Learning; Canvas evidence; Course Guide; future course-design scenarios; accessibility and responsive interaction requirements",
-      "sourcesFound": 3,
-      "status": "In Progress"
-    },
-    {
-      "id": "plan-v2-theme-05",
-      "theme": "Educator Professional Development & Transfer to Practice",
-      "question": "What makes professional development useful, relevant, sustained, and transferable for educators, and how can PromptCraft connect low-risk practice to decisions participants make in their own courses?",
-      "searchTerms": "effective faculty professional development higher education; professional learning transfer educators; online asynchronous faculty development; adult learning professional development faculty; job embedded professional learning higher education",
-      "chapters": "Chapter 1: Significance and audience\nChapter 2: Professional development\nChapter 3: Intervention rationale",
-      "scenarios": "My Course/private transfer activities; Course Guide; optional scenario relevance; authentic Canvas problems; printable participant artifacts",
-      "sourcesFound": 1,
-      "status": "In Progress"
-    },
-    {
-      "id": "plan-v2-theme-06",
-      "theme": "Metacognition, Reflection & Learning Transfer",
-      "question": "How do prediction, explanation, reflection, revision, and transfer activities make educator reasoning visible and support learning from AI-supported instructional decisions?",
-      "searchTerms": "metacognition professional learning educators; reflection transfer adult learning; prediction explanation learning; self regulated learning professional development; metacognitive prompting AI education",
-      "chapters": "Chapter 2: Metacognition, reflection, and transfer\nChapter 3: PromptCraft learning loop and qualitative evidence",
-      "scenarios": "Prediction before AI consultation; explanation of evidence; reflection and revision; My Course transfer; Course Guide accumulation",
+      "id": "plan-v3-theme-01",
+      "theme": "Conceptual foundations",
+      "question": "How do postsecondary educators articulate instructional-design reasoning and professional judgment while balancing instructional purpose, requirements, tradeoffs, and purposeful creativity?",
+      "searchTerms": "instructional design reasoning; instructional decision making higher education; pedagogical reasoning faculty; professional judgment educators; purposeful creativity instructional design; creative problem solving course design",
+      "chapters": "Chapter 1: Background, problem, purpose, and research questions\nChapter 2: Instructional-Design Reasoning and Professional Judgment",
+      "scenarios": "Across both Play the Game and Creative Workspace; educator explanations of purpose, alternatives, constraints, revisions, and design decisions",
       "sourcesFound": 0,
       "status": "In Progress"
     },
     {
-      "id": "plan-v2-theme-07",
-      "theme": "Research Instrumentation, Process Data & Validity",
-      "question": "Which PromptCraft interactions provide defensible evidence of participant reasoning, and how can researcher-developed measures, process data, versioning, and scoring be made reliable and interpretable?",
-      "searchTerms": "researcher developed instrument validity education; process data learning analytics validity; performance assessment scoring reliability; content validity expert review educational intervention; process tracing educational research",
-      "chapters": "Chapter 3: Data sources, measures, reliability and validity\nChapter 4: Data analysis plan\nAppendix C-D",
-      "scenarios": "Research schema V121; scenario checkpoints; diagnosis and transfer responses; Babbage feedback provenance; fixed study build; intervention map",
+      "id": "plan-v3-theme-02",
+      "theme": "Professional learning",
+      "question": "How can scenario-based, experiential, and reflective professional learning help educators examine authentic design problems and describe intended transfer to their own teaching contexts?",
+      "searchTerms": "scenario based professional learning faculty; experiential learning higher education professional development; reflection faculty development; authentic learning educator professional development; intended transfer professional learning",
+      "chapters": "Chapter 2: Scenario-Based Learning and Purposeful Creativity\nChapter 2: Reflection, Professional Learning, and Intended Transfer",
+      "scenarios": "Play the Game scenarios; Creative Workspace exploration and build cycle; post-experience reflection; intended application to participants’ own courses",
       "sourcesFound": 0,
       "status": "In Progress"
     },
     {
-      "id": "plan-v2-theme-08",
-      "theme": "Mixed Methods Action Research & Iterative Design",
-      "question": "How can mixed methods action research examine both participant outcomes and the experience of using PromptCraft while the development log documents the iterative design process and researcher positionality?",
-      "searchTerms": "mixed methods action research education intervention; practitioner action research mixed methods; iterative design action research; design log audit trail qualitative research; mixed methods integration intervention study",
-      "chapters": "Chapter 2: Iterative design and action research\nChapter 3: Research design\nChapter 4: Integration of evidence\nChapter 5: Limitations",
-      "scenarios": "Development Log and Visual History; fixed intervention version during data collection; participant performance plus qualitative reflection and researcher documentation",
+      "id": "plan-v3-theme-03",
+      "theme": "AI collaboration",
+      "question": "How do educator agency, critical evaluation, AI literacy, and awareness of overreliance shape responsible human-AI collaboration in instructional-design decisions?",
+      "searchTerms": "educator agency generative AI; critical AI literacy higher education faculty; AI overreliance educators; human AI collaboration instructional design; automation bias education; evaluate adapt reject AI suggestions",
+      "chapters": "Chapter 2: Critical AI Collaboration and Educator Agency\nChapter 3: AI-Supported Collaboration",
+      "scenarios": "Babbage collaboration; educator acceptance, modification, questioning, or rejection of AI suggestions; separation of educator-authored reasoning from AI output",
+      "sourcesFound": 0,
+      "status": "In Progress"
+    },
+    {
+      "id": "plan-v3-theme-04",
+      "theme": "Online instructional design",
+      "question": "What online instructional-design principles are most relevant to PromptCraft’s authentic problems, including accessibility, meaningful instructor interaction, course quality, assessment, alignment, and sustainable workload?",
+      "searchTerms": "online instructional design higher education; accessibility online courses; instructor interaction online learning; course quality higher education; assessment design online learning; alignment instructional design",
+      "chapters": "Chapter 1: Background and Context\nChapter 2: Meaningful Online Learning, Instructor Interaction, and Accessibility",
+      "scenarios": "Canvas-centered instructional problems; accessibility decisions; instructor interaction; assessment and activity redesign; applicable quality expectations and requirements",
+      "sourcesFound": 0,
+      "status": "In Progress"
+    },
+    {
+      "id": "plan-v3-theme-05",
+      "theme": "Research methodology",
+      "question": "How should a qualitative descriptive study of PromptCraft be designed, including purposive sampling, prototype usability testing, pilot testing, instrument development, participant recruitment, and data collection procedures?",
+      "searchTerms": "qualitative description methodology Sandelowski; qualitative descriptive study education; purposive sampling qualitative research; qualitative instrument development; pilot testing qualitative research; usability testing educational prototype",
+      "chapters": "Chapter 3: Research Design and Rationale\nChapter 3: Prototype Usability Testing\nChapter 3: Pilot Testing of Data Collection Procedures\nChapter 3: Participants and Recruitment\nChapter 3: Data Collection Instruments",
+      "scenarios": "Three-stage research process: prototype usability testing, data-collection pilot, formal qualitative descriptive study",
+      "sourcesFound": 0,
+      "status": "In Progress"
+    },
+    {
+      "id": "plan-v3-theme-06",
+      "theme": "Analysis and research rigor",
+      "question": "How will thematic analysis, trustworthiness strategies, reflexivity, an audit trail, contradictory cases, research ethics, and data-management practices support a credible and transparent study?",
+      "searchTerms": "thematic analysis qualitative research; qualitative trustworthiness credibility audit trail; researcher reflexivity qualitative education; negative cases qualitative analysis; qualitative research ethics data management",
+      "chapters": "Chapter 3: Data Analysis\nChapter 3: Trustworthiness\nChapter 3: Ethical Considerations and Data Management\nChapter 3: Study Limitations",
+      "scenarios": "Participant-authored design records and reflections; coding and theme development; development log kept separate from participant evidence; reflexive notes and audit trail",
       "sourcesFound": 0,
       "status": "In Progress"
     }
   ],
   "outline": [
     {
-      "id": "plan-v2-outline-01",
-      "chapter": "Chapter 1: Introduction and Context",
-      "section": "Introduction and Problem Context",
-      "questions": "Why does educator use of generative AI require more than access to tools or prompt-writing tips? What instructional risks and responsibilities make critical evaluation, accessibility, alignment, privacy, and professional judgment necessary?",
-      "themes": "Educator AI Literacy & Critical Evaluation\nProfessional Judgment, Agency & Human-AI Decision Making",
+      "id": "plan-v3-outline-01",
+      "chapter": "Chapter 1: Introduction",
+      "section": "Background and Context",
+      "questions": "Keep the problem centered on instructional-design reasoning in online higher education: educators must make decisions about learning outcomes, accessibility, assessment, instructor interaction, student engagement, and sustainable workload while navigating emerging AI tools.",
+      "themes": "Conceptual foundations\nOnline instructional design\nAI collaboration",
       "status": "Drafted"
     },
     {
-      "id": "plan-v2-outline-02",
-      "chapter": "Chapter 1: Introduction and Context",
-      "section": "Motivation for the Study",
-      "questions": "How does the researcher’s instructional-design work motivate a low-risk, practice-based professional learning environment for educators using AI?",
-      "themes": "Educator Professional Development & Transfer to Practice\nInstructional Design, Canvas, Accessibility & OSCQR",
+      "id": "plan-v3-outline-02",
+      "chapter": "Chapter 1: Introduction",
+      "section": "Statement of the Problem",
+      "questions": "Maintain the current distinction between generating plausible teaching ideas and exercising instructional judgment. Emphasize the need for descriptive evidence about how educators make reasoning visible in AI-supported creative design work.",
+      "themes": "Conceptual foundations\nAI collaboration\nProfessional learning",
       "status": "Drafted"
     },
     {
-      "id": "plan-v2-outline-03",
-      "chapter": "Chapter 1: Introduction and Context",
-      "section": "Positionality and Professional Context",
-      "questions": "How do the researcher’s roles as instructional designer, educator, game designer, developer, and proposed researcher shape the intervention and create both expertise and potential bias? How will the research log and multiple evidence sources make that position visible?",
-      "themes": "Mixed Methods Action Research & Iterative Design",
-      "status": "Drafted"
-    },
-    {
-      "id": "plan-v2-outline-04",
-      "chapter": "Chapter 1: Introduction and Context",
-      "section": "Description and Design Logic of PromptCraft",
-      "questions": "What has PromptCraft become after iterative development? How does the current learning loop move from authentic evidence and human judgment to AI-supported analysis, reflection, revision, and transfer rather than treating prompt construction as the end goal?",
-      "themes": "Professional Judgment, Agency & Human-AI Decision Making\nAuthentic Scenario-Based & Game-Based Professional Learning\nEducator Professional Development & Transfer to Practice",
-      "status": "In Progress"
-    },
-    {
-      "id": "plan-v2-outline-05",
-      "chapter": "Chapter 1: Introduction and Context",
+      "id": "plan-v3-outline-03",
+      "chapter": "Chapter 1: Introduction",
       "section": "Purpose of the Study",
-      "questions": "What will the study examine about educators’ demonstrated evaluation and instructional decision-making, their experience of PromptCraft, and the use of evidence to refine the intervention?",
-      "themes": "Educator AI Literacy & Critical Evaluation\nMixed Methods Action Research & Iterative Design",
+      "questions": "Describe the proposed qualitative descriptive study of how postsecondary educators articulate and demonstrate instructional-design reasoning in either Play the Game or Creative Workspace. Do not frame the study as an effectiveness test.",
+      "themes": "Conceptual foundations\nResearch methodology",
       "status": "Drafted"
     },
     {
-      "id": "plan-v2-outline-06",
-      "chapter": "Chapter 1: Introduction and Context",
+      "id": "plan-v3-outline-04",
+      "chapter": "Chapter 1: Introduction",
       "section": "Research Questions",
-      "questions": "Finalize research questions that match the fixed intervention and actual measures. Preserve the current emphasis on demonstrated evaluation/instructional decisions, participant perceptions of relevance/usability/value, and how combined evidence informs revision.",
-      "themes": "Research Instrumentation, Process Data & Validity\nMixed Methods Action Research & Iterative Design",
-      "status": "In Progress"
-    },
-    {
-      "id": "plan-v2-outline-07",
-      "chapter": "Chapter 1: Introduction and Context",
-      "section": "Significance and Intended Audience",
-      "questions": "What can a small pilot reasonably contribute to faculty development, instructional design, school/college leadership, and teacher-development programs without overgeneralizing to statewide policy?",
-      "themes": "Educator Professional Development & Transfer to Practice\nEducator AI Literacy & Critical Evaluation",
+      "questions": "Preserve the four current questions: instructional-design reasoning; evaluation/adaptation/rejection of AI suggestions; explanation of instructional purposes, creative alternatives, requirements and constraints; and reflection on intended application.",
+      "themes": "Conceptual foundations\nAI collaboration\nProfessional learning",
       "status": "Drafted"
     },
     {
-      "id": "plan-v2-outline-08",
+      "id": "plan-v3-outline-05",
       "chapter": "Chapter 2: Review of Literature",
-      "section": "Generative AI in Education",
-      "questions": "How is generative AI currently being used in teaching, assessment, feedback, and course development, and what risks or uncertainties matter for educator decision-making?",
-      "themes": "Educator AI Literacy & Critical Evaluation",
-      "status": "Not Started"
-    },
-    {
-      "id": "plan-v2-outline-09",
-      "chapter": "Chapter 2: Review of Literature",
-      "section": "Educator AI Literacy and Critical Evaluation",
-      "questions": "What does AI literacy mean for educators? Which frameworks include evaluation, bias, accuracy, privacy, accessibility, attribution, and responsible use? Where does PromptCraft fit within that literature?",
-      "themes": "Educator AI Literacy & Critical Evaluation",
+      "section": "Instructional-Design Reasoning and Professional Judgment",
+      "questions": "Strengthen the literature defining instructional-design reasoning, pedagogical judgment, decision-making, tradeoffs, and educator justification. Purposeful creativity belongs here as constrained instructional problem solving rather than novelty for its own sake.",
+      "themes": "Conceptual foundations",
       "status": "In Progress"
     },
     {
-      "id": "plan-v2-outline-10",
+      "id": "plan-v3-outline-06",
       "chapter": "Chapter 2: Review of Literature",
-      "section": "Professional Judgment, Agency, and Human-AI Decision Making",
-      "questions": "What does the literature say about educator agency, automation bias, overreliance, human oversight, and retaining responsibility when AI contributes to instructional decisions?",
-      "themes": "Professional Judgment, Agency & Human-AI Decision Making",
+      "section": "Scenario-Based Learning and Purposeful Creativity",
+      "questions": "Support the use of authentic scenarios, cases, experiential decision-making, and creative alternatives. Distinguish learning-relevant scenario mechanics from generic gamification or engagement claims.",
+      "themes": "Professional learning\nConceptual foundations",
       "status": "In Progress"
     },
     {
-      "id": "plan-v2-outline-11",
+      "id": "plan-v3-outline-07",
       "chapter": "Chapter 2: Review of Literature",
-      "section": "Educator Professional Development and Adult Learning",
-      "questions": "What characteristics make professional learning relevant, active, sustained, job-embedded, and transferable for educators? What evidence exists for online or asynchronous faculty development?",
-      "themes": "Educator Professional Development & Transfer to Practice",
-      "status": "Not Started"
-    },
-    {
-      "id": "plan-v2-outline-12",
-      "chapter": "Chapter 2: Review of Literature",
-      "section": "Scenario-Based, Experiential, and Game-Based Learning",
-      "questions": "Why use authentic cases, simulations, visual-novel framing, and staged decisions for professional learning? Which game elements support learning, and which risk becoming decorative or distracting?",
-      "themes": "Authentic Scenario-Based & Game-Based Professional Learning",
+      "section": "Critical AI Collaboration and Educator Agency",
+      "questions": "Develop the literature around AI literacy, critical evaluation, overreliance, human oversight, and educator agency. Connect this directly to accepting, modifying, questioning, or rejecting AI recommendations.",
+      "themes": "AI collaboration",
       "status": "In Progress"
     },
     {
-      "id": "plan-v2-outline-13",
+      "id": "plan-v3-outline-08",
       "chapter": "Chapter 2: Review of Literature",
-      "section": "Metacognition, Reflection, and Transfer",
-      "questions": "How do prediction, explanation, reflection, revision, and transfer support learning and make reasoning visible, particularly when learners interact with AI-generated feedback?",
-      "themes": "Metacognition, Reflection & Learning Transfer",
-      "status": "Not Started"
+      "section": "Meaningful Online Learning, Instructor Interaction, and Accessibility",
+      "questions": "Ground PromptCraft’s authentic online-design problems in literature on accessibility, meaningful instructor interaction, course quality, alignment, assessment, and learner experience. Keep binding requirements distinct from recommended practices.",
+      "themes": "Online instructional design",
+      "status": "In Progress"
     },
     {
-      "id": "plan-v2-outline-14",
+      "id": "plan-v3-outline-09",
       "chapter": "Chapter 2: Review of Literature",
-      "section": "Instructional Design, Accessibility, and OSCQR",
-      "questions": "Which online-course design principles support PromptCraft’s Canvas-centered cases? How should OSCQR inform design and content validity without being described as a validated AI-performance instrument unless evidence supports that use?",
-      "themes": "Instructional Design, Canvas, Accessibility & OSCQR",
-      "status": "Not Started"
+      "section": "Reflection, Professional Learning, and Intended Transfer",
+      "questions": "Support reflection, experiential professional learning, articulation of rationale, revision, and intended application. Keep intended transfer distinct from evidence of actual classroom implementation.",
+      "themes": "Professional learning",
+      "status": "In Progress"
     },
     {
-      "id": "plan-v2-outline-15",
+      "id": "plan-v3-outline-10",
       "chapter": "Chapter 2: Review of Literature",
-      "section": "Iterative Design and Action Research",
-      "questions": "How do iterative game/design cycles connect to action research and reflective practice? How can the PromptCraft development log function as an audit trail without being confused with participant outcome data?",
-      "themes": "Mixed Methods Action Research & Iterative Design",
+      "section": "Collaboration, Open Educational Practices, and the Vision for PromptCraft",
+      "questions": "Keep this as a future-facing design discussion rather than an evaluated component of the present study. Clarify consent, attribution, ownership, privacy, and adaptation issues if collaborative sharing is discussed.",
+      "themes": "Professional learning\nOnline instructional design",
       "status": "Drafted"
     },
     {
-      "id": "plan-v2-outline-16",
-      "chapter": "Chapter 2: Review of Literature",
-      "section": "Synthesis and Research Gap",
-      "questions": "What is missing when AI professional development focuses on tools and prompting rather than authentic instructional judgment? What evidence does this study add about a scenario-based intervention centered on evaluation and decision-making?",
-      "themes": "All themes",
-      "status": "Not Started"
-    },
-    {
-      "id": "plan-v2-outline-17",
-      "chapter": "Chapter 3: Methodology",
-      "section": "Research Design",
-      "questions": "What specific mixed methods action-research design will be used? When will quantitative and qualitative data be collected, and how will the strands be integrated?",
-      "themes": "Mixed Methods Action Research & Iterative Design",
-      "status": "In Progress"
-    },
-    {
-      "id": "plan-v2-outline-18",
-      "chapter": "Chapter 3: Methodology",
-      "section": "Development of the Intervention and Design Framework",
-      "questions": "Which major development decisions led to the current PromptCraft model? Which design principles emerged from the R&D log, including human reasoning before AI, authentic Canvas evidence, one objective per page, private transfer, and instructor responsibility?",
-      "themes": "Authentic Scenario-Based & Game-Based Professional Learning\nProfessional Judgment, Agency & Human-AI Decision Making\nInstructional Design, Canvas, Accessibility & OSCQR",
-      "status": "In Progress"
-    },
-    {
-      "id": "plan-v2-outline-19",
-      "chapter": "Chapter 3: Methodology",
-      "section": "Participants, Recruitment, and Study Setting",
-      "questions": "Who is the target population? What are inclusion criteria, recruitment goal, usable sample, study setting, recruitment method, incentives, and protections against professional power relationships?",
-      "themes": "Mixed Methods Action Research & Iterative Design",
-      "status": "Not Started"
-    },
-    {
-      "id": "plan-v2-outline-20",
-      "chapter": "Chapter 3: Methodology",
-      "section": "Intervention and Duration",
-      "questions": "Which fixed PromptCraft build and scenarios constitute the study intervention? What must every participant complete, what is optional, how long should completion take, and how will treatment fidelity/version control be preserved?",
-      "themes": "Research Instrumentation, Process Data & Validity\nEducator Professional Development & Transfer to Practice",
-      "status": "In Progress"
-    },
-    {
-      "id": "plan-v2-outline-21",
-      "chapter": "Chapter 3: Methodology",
-      "section": "Data Sources and Measures",
-      "questions": "Which quantitative and qualitative measures map directly to each research question? Which PromptCraft checkpoints capture participant decisions or reasoning, and which technical events should remain outside the analytic dataset?",
-      "themes": "Research Instrumentation, Process Data & Validity",
-      "status": "In Progress"
-    },
-    {
-      "id": "plan-v2-outline-22",
-      "chapter": "Chapter 3: Methodology",
-      "section": "Application Data and Research Log",
-      "questions": "How will Apps Script data, participant codes, timestamps, responses, completion events, version identifiers, and the researcher development log be stored and kept conceptually separate?",
-      "themes": "Research Instrumentation, Process Data & Validity\nMixed Methods Action Research & Iterative Design",
+      "id": "plan-v3-outline-11",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Research Design and Rationale",
+      "questions": "Use qualitative description as the formal design. Justify describing patterns and variations in educators’ articulated reasoning without causal claims, pre/post gains, or pathway-effectiveness comparisons.",
+      "themes": "Research methodology",
       "status": "Drafted"
     },
     {
-      "id": "plan-v2-outline-23",
-      "chapter": "Chapter 3: Methodology",
-      "section": "Reliability, Validity, and Measurement Evidence",
-      "questions": "How will researcher-developed measures be aligned to intended outcomes, expert-reviewed, piloted, scored consistently, and revised? What evidence is needed before using terms such as validated or reliable?",
-      "themes": "Research Instrumentation, Process Data & Validity",
+      "id": "plan-v3-outline-12",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Researcher Role and Positionality",
+      "questions": "Maintain the distinction between development records and participant evidence. Document assumptions associated with the researcher’s roles as PromptCraft developer and instructional designer through reflexive notes and an audit trail.",
+      "themes": "Analysis and research rigor",
+      "status": "Drafted"
+    },
+    {
+      "id": "plan-v3-outline-13",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Research Setting and PromptCraft Experience",
+      "questions": "Verify the exact research build before recruitment. Describe only features actually available in the approved study version, including Play the Game, Creative Workspace, AI-supported collaboration, and participant-selected pathway use.",
+      "themes": "Research methodology\nConceptual foundations",
       "status": "In Progress"
     },
     {
-      "id": "plan-v2-outline-24",
-      "chapter": "Chapter 3: Methodology",
+      "id": "plan-v3-outline-14",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Prototype Usability Testing",
+      "questions": "Define usability testing as developmental work focused on technical problems, navigation, accessibility, and confusing instructional interactions. Do not treat usability feedback as evidence of instructional-design reasoning or effectiveness.",
+      "themes": "Research methodology",
+      "status": "Drafted"
+    },
+    {
+      "id": "plan-v3-outline-15",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Pilot Testing of Data Collection Procedures",
+      "questions": "Use the pilot to test instructions, research prompts, completeness of records, separation of educator-authored reasoning from AI output, research export functionality, timing, and whether each research question is adequately supported.",
+      "themes": "Research methodology\nAnalysis and research rigor",
+      "status": "Drafted"
+    },
+    {
+      "id": "plan-v3-outline-16",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Participants and Recruitment",
+      "questions": "Current plan: approximately 8–12 postsecondary educators with online teaching/design experience, recruited purposively and voluntarily, potentially across more than one institution. Final eligibility, sample, recruitment, permissions, and protections must be established before data collection.",
+      "themes": "Research methodology\nAnalysis and research rigor",
+      "status": "Drafted"
+    },
+    {
+      "id": "plan-v3-outline-17",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Data Collection Instruments",
+      "questions": "Refine the brief background questionnaire, participant-authored instructional-design records, and post-experience reflection instrument. Seek methodological/instructional-design feedback on alignment and clarity before pilot testing.",
+      "themes": "Research methodology",
+      "status": "In Progress"
+    },
+    {
+      "id": "plan-v3-outline-18",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Supplementary Interaction Data",
+      "questions": "Retain only interaction data needed to contextualize qualitative records and only if feasible and approved. Do not interpret pathway selection, activity completion, navigation, AI interactions, or revision counts as independent measures of reasoning.",
+      "themes": "Research methodology\nAnalysis and research rigor",
+      "status": "In Progress"
+    },
+    {
+      "id": "plan-v3-outline-19",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Research Procedures",
+      "questions": "Maintain the three-stage sequence: prototype usability testing, data-collection pilot, formal qualitative descriptive study. Keep pilot records separate from the formal study dataset and verify consent/approval requirements for each stage.",
+      "themes": "Research methodology\nAnalysis and research rigor",
+      "status": "Drafted"
+    },
+    {
+      "id": "plan-v3-outline-20",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Data Analysis",
+      "questions": "Use thematic analysis of participant-authored design records and reflections. Begin with research-question/literature-informed provisional categories, allow additional codes to emerge, review candidate themes against original records, and interpret AI acceptance/modification/questioning/rejection through participants’ explanations.",
+      "themes": "Analysis and research rigor",
+      "status": "Drafted"
+    },
+    {
+      "id": "plan-v3-outline-21",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Trustworthiness",
+      "questions": "Strengthen the plan for expert feedback on prompts, comparison of design records with reflections, audit trail, reflexive notes, contradictory cases, participant excerpts, and contextual description.",
+      "themes": "Analysis and research rigor",
+      "status": "Drafted"
+    },
+    {
+      "id": "plan-v3-outline-22",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
       "section": "Ethical Considerations and Data Management",
-      "questions": "How will informed consent, privacy, minimal collection of identifiers, withdrawal, access restrictions, retention/deletion, and separation of research data from private My Course work be handled?",
-      "themes": "Research Instrumentation, Process Data & Validity\nMixed Methods Action Research & Iterative Design",
-      "status": "Drafted"
-    },
-    {
-      "id": "plan-v2-outline-25",
-      "chapter": "Chapter 4: Data Analysis Plan",
-      "section": "Quantitative Analysis",
-      "questions": "Which descriptive statistics and, if justified by final sample size and design, inferential analyses match the finalized variables and measurement levels?",
-      "themes": "Research Instrumentation, Process Data & Validity",
-      "status": "Not Started"
-    },
-    {
-      "id": "plan-v2-outline-26",
-      "chapter": "Chapter 4: Data Analysis Plan",
-      "section": "Qualitative Analysis",
-      "questions": "How will participant explanations, reflections, feedback, and relevant researcher-log entries be organized and coded? How will negative or contradictory cases be retained?",
-      "themes": "Mixed Methods Action Research & Iterative Design\nMetacognition, Reflection & Learning Transfer",
-      "status": "Not Started"
-    },
-    {
-      "id": "plan-v2-outline-27",
-      "chapter": "Chapter 4: Data Analysis Plan",
-      "section": "Integration of Quantitative and Qualitative Evidence",
-      "questions": "How will quantitative performance patterns be compared with participant explanations and researcher observations to identify agreement, expansion, and contradiction by research question?",
-      "themes": "Mixed Methods Action Research & Iterative Design",
-      "status": "Drafted"
-    },
-    {
-      "id": "plan-v2-outline-28",
-      "chapter": "Chapter 5: Anticipated Significance, Limitations, and Dissemination",
-      "section": "Anticipated Significance and Implications",
-      "questions": "What can the study reasonably show about interactive AI-related professional learning, educator judgment, and useful design features for local practice?",
-      "themes": "Educator Professional Development & Transfer to Practice\nEducator AI Literacy & Critical Evaluation",
-      "status": "Drafted"
-    },
-    {
-      "id": "plan-v2-outline-29",
-      "chapter": "Chapter 5: Anticipated Significance, Limitations, and Dissemination",
-      "section": "Limitations",
-      "questions": "How will the paper address a potentially small/self-selected sample, varied prior AI experience, the researcher’s dual role, researcher-developed measures, novelty effects, and limits on generalization?",
-      "themes": "Research Instrumentation, Process Data & Validity\nMixed Methods Action Research & Iterative Design",
-      "status": "Drafted"
-    },
-    {
-      "id": "plan-v2-outline-30",
-      "chapter": "Chapter 5: Anticipated Significance, Limitations, and Dissemination",
-      "section": "Dissemination",
-      "questions": "How will findings be shared with faculty, educational leaders, professional audiences, and the Montana Legislature while clearly distinguishing pilot evidence from broader policy claims?",
-      "themes": "Educator Professional Development & Transfer to Practice",
-      "status": "Drafted"
-    },
-    {
-      "id": "plan-v2-outline-31",
-      "chapter": "Appendices",
-      "section": "Intervention Map, Instruments, Consent, Recruitment, and Data Management",
-      "questions": "Build the fixed-version intervention map linking scenario interactions to learning objectives and measures. Add final recruitment materials, informed consent, data-collection instruments, and data-management procedures after approval.",
-      "themes": "Research Instrumentation, Process Data & Validity\nAll themes",
+      "questions": "Finalize institutional review, voluntary consent, confidentiality, professional-relationship protections, AI-service data handling, participant coding, storage, retention/deletion, withdrawal procedures, and separation of development/usability/pilot/formal-study records.",
+      "themes": "Analysis and research rigor\nResearch methodology",
       "status": "In Progress"
+    },
+    {
+      "id": "plan-v3-outline-23",
+      "chapter": "Chapter 3: Methodology and Data Acquisition",
+      "section": "Study Limitations",
+      "questions": "Address small purposive sample, participant-selected pathways, varied prior AI/design experience, researcher/developer dual role, prototype status, self-reported intended application, and limits on generalization and causal interpretation.",
+      "themes": "Analysis and research rigor",
+      "status": "Drafted"
     }
   ],
   "reading": [
     {
-      "id": "plan-v2-reading-01",
-      "phase": "Phase 1: Literature Foundation",
-      "theme": "Educator AI Literacy & Critical Evaluation",
-      "reading": "Current review of educator AI-literacy frameworks and empirical studies (2023-2026)",
-      "goal": "Identify 3-5 strong definitions/frameworks that include evaluation and responsible use, not only tool operation or prompting. Record which constructs PromptCraft actually addresses.",
-      "target": "Early October 2026",
+      "id": "plan-v3-reading-01",
+      "phase": "Literature foundation",
+      "theme": "Conceptual foundations",
+      "reading": "Strengthen instructional-design reasoning and professional judgment literature",
+      "goal": "Locate empirical or theoretical work on how educators or instructional designers diagnose design problems, weigh alternatives and constraints, justify choices, and revise decisions. This is now the primary conceptual gap.",
+      "target": "Before Chapter 2 is finalized",
       "done": false
     },
     {
-      "id": "plan-v2-reading-02",
-      "phase": "Phase 1: Literature Foundation",
-      "theme": "Professional Judgment, Agency & Human-AI Decision Making",
-      "reading": "Search: educator agency, automation bias, overreliance, and human oversight in generative-AI use",
-      "goal": "Build the literature base for PromptCraft’s central design principle that AI can analyze or advise while the educator retains responsibility for the instructional decision.",
-      "target": "October 2026",
+      "id": "plan-v3-reading-02",
+      "phase": "Literature foundation",
+      "theme": "Conceptual foundations",
+      "reading": "Purposeful creativity as constrained instructional problem solving",
+      "goal": "Find literature that supports creativity within instructional purposes and constraints rather than generic originality or AI content generation.",
+      "target": "Before Chapter 2 is finalized",
       "done": false
     },
     {
-      "id": "plan-v2-reading-03",
-      "phase": "Phase 1: Literature Foundation",
-      "theme": "Authentic Scenario-Based & Game-Based Professional Learning",
-      "reading": "Review serious games, scenario-based learning, simulation, and experiential learning for adult/professional education",
-      "goal": "Separate evidence for authentic decision practice from generic claims that gamification increases engagement. Identify literature that fits PromptCraft’s actual mechanics.",
-      "target": "October 2026",
+      "id": "plan-v3-reading-03",
+      "phase": "Literature foundation",
+      "theme": "Professional learning",
+      "reading": "Scenario-based, experiential, and reflective professional learning",
+      "goal": "Support authentic cases, low-risk practice, reflection, revision, and professional learning for educators. Prioritize evidence relevant to higher education or professional learning.",
+      "target": "Before Chapter 2 is finalized",
       "done": false
     },
     {
-      "id": "plan-v2-reading-04",
-      "phase": "Phase 1: Literature Foundation",
-      "theme": "Educator Professional Development & Transfer to Practice",
-      "reading": "Review effective faculty/educator professional development and transfer-to-practice literature",
-      "goal": "Identify characteristics of useful professional learning such as relevance, active practice, job-embedded transfer, sustained support, and applicability to educators’ own courses.",
-      "target": "October 2026",
+      "id": "plan-v3-reading-04",
+      "phase": "Literature foundation",
+      "theme": "Professional learning",
+      "reading": "Intended transfer and application to educators’ own teaching",
+      "goal": "Clarify what can be claimed from participants describing intended changes and how intended transfer differs from observed implementation or student outcomes.",
+      "target": "Before Chapter 2 is finalized",
       "done": false
     },
     {
-      "id": "plan-v2-reading-05",
-      "phase": "Phase 1: Literature Foundation",
-      "theme": "Instructional Design, Canvas, Accessibility & OSCQR",
-      "reading": "Search peer-reviewed literature on OSCQR, online-course organization, accessibility, alignment, and learner navigation",
-      "goal": "Ground the Canvas-centered instructional problems in research and determine what claims can legitimately be made about OSCQR as a design framework or measurement source.",
-      "target": "October 2026",
+      "id": "plan-v3-reading-05",
+      "phase": "Literature foundation",
+      "theme": "AI collaboration",
+      "reading": "Educator agency, critical AI evaluation, AI literacy, and overreliance",
+      "goal": "Build support for Babbage as a collaborator rather than authority and for analyzing how educators accept, modify, question, or reject AI suggestions.",
+      "target": "Before Chapter 2 is finalized",
       "done": false
     },
     {
-      "id": "plan-v2-reading-06",
-      "phase": "Phase 1: Literature Foundation",
-      "theme": "Metacognition, Reflection & Learning Transfer",
-      "reading": "Review prediction, reflection, explanation, metacognition, and transfer in adult or professional learning",
-      "goal": "Support the PromptCraft loop in which participants predict, explain, review evidence, revise, and apply principles to their own course context.",
-      "target": "Late October 2026",
+      "id": "plan-v3-reading-06",
+      "phase": "Literature foundation",
+      "theme": "Online instructional design",
+      "reading": "Accessibility, instructor interaction, course quality, and assessment in online higher education",
+      "goal": "Ground PromptCraft’s authentic design problems without treating any single quality framework as the outcome measure for the study.",
+      "target": "Before Chapter 2 is finalized",
       "done": false
     },
     {
-      "id": "plan-v2-reading-07",
-      "phase": "Phase 1: Literature Foundation",
-      "theme": "Mixed Methods Action Research & Iterative Design",
-      "reading": "Macklin & Sharp plus current action-research and iterative-design methodology sources",
-      "goal": "Strengthen the conceptual connection among prototyping, playtesting, reflective practice, intervention revision, and the development log without collapsing design evidence into participant outcome evidence.",
-      "target": "Late October 2026",
-      "done": false
-    },
-    {
-      "id": "plan-v2-reading-08",
-      "phase": "Phase 2: Study Design",
-      "theme": "Research Instrumentation, Process Data & Validity",
-      "reading": "Researcher-developed measures: content validity, expert review, pilot testing, scoring criteria, reliability, and inter-rater agreement",
-      "goal": "Create a defensible validation plan for PromptCraft measures and identify established measures that could be adapted instead of inventing everything from scratch.",
-      "target": "Before instruments are finalized",
-      "done": false
-    },
-    {
-      "id": "plan-v2-reading-09",
-      "phase": "Phase 2: Study Design",
-      "theme": "Research Instrumentation, Process Data & Validity",
-      "reading": "Process data and learning analytics validity, event-log interpretation, and data minimization",
-      "goal": "Determine which in-app actions can be treated as meaningful evidence of reasoning and which should remain technical telemetry. Support privacy-conscious collection decisions.",
-      "target": "Before data collection",
-      "done": false
-    },
-    {
-      "id": "plan-v2-reading-10",
-      "phase": "Phase 2: Study Design",
-      "theme": "Mixed Methods Action Research & Iterative Design",
-      "reading": "Mixed methods design and integration: convergent, explanatory, exploratory, and embedded approaches",
-      "goal": "Select and justify the specific mixed methods design; define collection sequence, priority, and integration by research question.",
+      "id": "plan-v3-reading-07",
+      "phase": "Methodology",
+      "theme": "Research methodology",
+      "reading": "Qualitative description methodology",
+      "goal": "Establish a defensible rationale for qualitative description and clarify how the study will stay close to participants’ articulated reasoning while still identifying patterns across cases.",
       "target": "Before Chapter 3 is finalized",
       "done": false
     },
     {
-      "id": "plan-v2-reading-11",
-      "phase": "Phase 2: Study Design",
-      "theme": "Mixed Methods Action Research & Iterative Design",
-      "reading": "Action research in practitioner-developed educational interventions",
-      "goal": "Clarify how action research fits the study, researcher positionality, iterative improvement, and the boundary between development documentation and participant research data.",
+      "id": "plan-v3-reading-08",
+      "phase": "Methodology",
+      "theme": "Research methodology",
+      "reading": "Purposive sampling and sample adequacy for focused qualitative description",
+      "goal": "Support the proposed 8–12 participant planning estimate, eligibility logic, varied perspectives, and cautious interpretation without statistical representativeness claims.",
+      "target": "Before recruitment plan is finalized",
+      "done": false
+    },
+    {
+      "id": "plan-v3-reading-09",
+      "phase": "Methodology",
+      "theme": "Research methodology",
+      "reading": "Instrument development, expert review, and pilot testing for qualitative data collection",
+      "goal": "Support development and refinement of the background questionnaire, participant-authored records, reflection prompts, and pilot procedures without making unsupported reliability/validity claims.",
+      "target": "Before pilot testing",
+      "done": false
+    },
+    {
+      "id": "plan-v3-reading-10",
+      "phase": "Analysis and rigor",
+      "theme": "Analysis and research rigor",
+      "reading": "Thematic analysis procedures",
+      "goal": "Specify coding, candidate-theme development, review against original records, treatment of provisional versus emergent codes, and documentation of analytic decisions.",
+      "target": "Before formal data analysis",
+      "done": false
+    },
+    {
+      "id": "plan-v3-reading-11",
+      "phase": "Analysis and rigor",
+      "theme": "Analysis and research rigor",
+      "reading": "Trustworthiness, reflexivity, audit trails, and contradictory cases",
+      "goal": "Strengthen the credibility and transparency plan for a researcher-developed intervention studied by its developer.",
       "target": "Before Chapter 3 is finalized",
       "done": false
     },
     {
-      "id": "plan-v2-reading-12",
-      "phase": "Phase 2: Study Design",
-      "theme": "Research Instrumentation, Process Data & Validity",
-      "reading": "MSU IRB/TOPAZ requirements, informed consent, recruitment, privacy, and data-management guidance",
-      "goal": "Translate the proposed data flow into approved recruitment, consent, participant coding, storage, retention, withdrawal, and deletion procedures.",
-      "target": "Before IRB submission",
+      "id": "plan-v3-reading-12",
+      "phase": "Analysis and rigor",
+      "theme": "Analysis and research rigor",
+      "reading": "Research ethics, AI-service data handling, and data management",
+      "goal": "Finalize consent, confidentiality, professional relationship protections, participant coding, AI processing disclosures, storage, retention/deletion, withdrawal, and separation of pilot/formal-study records.",
+      "target": "Before institutional review submission",
       "done": false
     },
     {
-      "id": "plan-v2-reading-13",
-      "phase": "Phase 2: Study Design",
-      "theme": "Educator Professional Development & Transfer to Practice",
-      "reading": "Pilot-study and small-sample intervention design literature",
-      "goal": "Determine a feasible comparison/pre-post approach and claims appropriate to the likely sample size, setting, and intervention duration.",
-      "target": "Before study design is fixed",
+      "id": "plan-v3-reading-13",
+      "phase": "Study preparation",
+      "theme": "Research methodology",
+      "reading": "Verify the fixed PromptCraft research build and research export",
+      "goal": "Confirm exactly which Play the Game and Creative Workspace features are included, stabilize AI behavior, verify export fields, and document the study version before pilot recruitment.",
+      "target": "Before pilot recruitment",
       "done": false
     },
     {
-      "id": "plan-v2-reading-14",
-      "phase": "Phase 3: Paper Synthesis",
-      "theme": "All themes",
-      "reading": "Chapter-by-chapter literature gap audit against the current professional paper",
-      "goal": "For each section, mark claims that already have support, claims still needing sources, obsolete literature targets, and places where the PromptCraft development record supplies design evidence rather than scholarly evidence.",
-      "target": "November 2026",
-      "done": false
-    },
-    {
-      "id": "plan-v2-reading-15",
-      "phase": "Phase 3: Paper Synthesis",
-      "theme": "All themes",
-      "reading": "Final current-literature update and citation verification",
-      "goal": "Refresh fast-moving AI literature, verify publication details and source quality, and make sure every substantive claim in the final paper is supported by the right type of evidence.",
-      "target": "Before final paper submission",
+      "id": "plan-v3-reading-14",
+      "phase": "Paper synthesis",
+      "theme": "All areas",
+      "reading": "Chapter-by-chapter evidence and citation audit",
+      "goal": "Check that each substantive claim is supported by the correct source type, remove obsolete mixed-methods/action-research language, and verify APA metadata and DOIs before finalizing the paper.",
+      "target": "Before paper submission",
       "done": false
     }
   ],
@@ -2007,8 +1931,8 @@ window.PROMPTCRAFT_SEED = {
     "version": 1,
     "generated": "2026-09-29",
     "project": "PromptCraft",
-    "researchPlanVersion": 2,
-    "researchPlanUpdated": "2026-09-29",
+    "researchPlanVersion": 3,
+    "researchPlanUpdated": "2026-11-24",
     "libraryCleanupVersion": 1
   },
   "researchArchives": [

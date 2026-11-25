@@ -26,6 +26,7 @@ const STORAGE_KEY='promptcraft-hub-state-v1';
 const ADMIN_KEY_STORAGE='pc-admin-key';
 const UNSYNCED_KEY='pc-cloud-unsynced';
 const RESEARCH_PLAN_VERSION=3;
+const RESEARCH_LIBRARY_REPAIR_VERSION=1;
 let state=loadLocal();
 let cloud=false;
 let syncing=false;
@@ -126,6 +127,227 @@ function normalizeResearchLibrary(x){
  }
  return x
 }
+
+function sourceTitleKey(v=''){return String(v||'').trim().toLowerCase().replace(/\s+/g,' ')}
+function mergeAnnotationLists(...lists){
+ const out=[],seen=new Set();
+ for(const list of lists)for(const a of (Array.isArray(list)?list:[])){const k=a.id||`${a.location||''}|${a.text||''}`;if(seen.has(k))continue;seen.add(k);out.push(clone(a))}
+ return out
+}
+function applyResearchLibraryRepair(x){
+ x.meta=(x.meta&&typeof x.meta==='object')?x.meta:{};
+ if(Number(x.meta.researchLibraryRepairVersion||0)>=RESEARCH_LIBRARY_REPAIR_VERSION)return x;
+ const sources=x.sources||[],materials=x.researchMaterials||[],uses=x.paperUses||[];
+ const repairStamp='2026-11-25T18:00:00.000Z';
+ const findTitle=(needle)=>sources.find(v=>sourceTitleKey(v.title).includes(sourceTitleKey(needle)));
+ const beforeIds=new Set([
+  '511edb78-505a-47e9-bc9b-37bcbc500a9b','03157e98-fa9b-4891-b214-470b8e32c733',
+  '674c7f3c-746c-4ba3-9158-ebff0f97755c','28679a8d-7bb7-4519-a857-3bb817462713'
+ ]);
+ for(const src of sources){
+  const t=sourceTitleKey(src.title),a=String(src.authors||'').toLowerCase();
+  if(
+   t.includes('whatever happened to qualitative description')||
+   t.includes('using thematic analysis in psychology')||
+   t.includes('thematic analysis: striving to meet the trustworthiness criteria')||
+   t.includes('reflective practitioner')||
+   t.includes('experiential learning: experience as the source')||
+   t.includes('learning by design: good video games')||
+   t.includes('when ai writes and ai grades')||
+   t.includes('rethinking artificial-intelligence literacy')||
+   t.includes('ai literacy: a framework')||
+   t.includes('promoting positive instructional designer')||
+   t.includes('modification and evaluation of an open-source rubric')||
+   t.includes('advancing project leadership education')||
+   t.includes('harnessing asynchronous digital simulations')||
+   t.includes('what gtas need')||
+   a.includes('olmos-vega')||a.includes('shulman')
+  )beforeIds.add(src.id)
+ }
+ const archivedSources=sources.filter(v=>beforeIds.has(v.id)).map(clone);
+ const archivedUses=uses.filter(v=>beforeIds.has(v.sourceId)).map(clone);
+ const archivedMaterials=materials.filter(v=>beforeIds.has(v.sourceId)).map(clone);
+ x.researchArchives=PromptCraftLibrary.unionArchives(x.researchArchives||[],[{
+   reason:'Research Library before citation and methodology cleanup (2026-11-25)',
+   version:1,state:{sources:archivedSources,paperUses:archivedUses,researchMaterials:archivedMaterials}
+ }]);
+
+ const patch=(src,fields)=>{if(!src)return;Object.assign(src,fields,{libraryCleanupVersion:2,updatedAt:repairStamp})};
+
+ // Merge duplicate Palinkas records into the newer annotated/PDF-backed record.
+ const palOld=sources.find(v=>v.id==='511edb78-505a-47e9-bc9b-37bcbc500a9b');
+ const pal=sources.find(v=>v.id==='03157e98-fa9b-4891-b214-470b8e32c733')||palOld||findTitle('purposeful sampling for qualitative data collection');
+ if(pal){
+   if(palOld&&palOld!==pal)pal.annotations=mergeAnnotationLists(pal.annotations,palOld.annotations);
+   for(const m of materials)if(m.sourceId===palOld?.id)m.sourceId=pal.id;
+   for(const u of uses)if(u.sourceId===palOld?.id)u.sourceId=pal.id;
+   patch(pal,{
+    theme:'Research Methodology',priority:'High',sourceType:'Article / PDF',
+    title:'Purposeful sampling for qualitative data collection and analysis in mixed method implementation research',
+    authors:'Lawrence A. Palinkas, Sarah M. Horwitz, Carla A. Green, Jennifer P. Wisdom, Naihua Duan, Kimberly Hoagwood',
+    apaAuthors:'Palinkas, L. A., Horwitz, S. M., Green, C. A., Wisdom, J. P., Duan, N., & Hoagwood, K.',
+    date:'2015',journal:'Administration and Policy in Mental Health and Mental Health Services Research',
+    publisher:'Springer',volume:'42',issue:'5',pages:'533–544',doi:'10.1007/s10488-013-0528-y',
+    url:'https://doi.org/10.1007/s10488-013-0528-y',
+    paperSection:'Chapter 3: Methodology and Data Acquisition · Participants and Recruitment'
+   });
+   if(palOld&&palOld!==pal)x.sources=sources.filter(v=>v.id!==palOld.id);
+ }
+
+ // Consolidate the Lincoln/Guba trustworthiness chapter into the correct original book record.
+ let lincoln=x.sources.find(v=>v.id==='674c7f3c-746c-4ba3-9158-ebff0f97755c')||findTitle('naturalistic inquiry');
+ const trust=x.sources.find(v=>v.id==='28679a8d-7bb7-4519-a857-3bb817462713')||findTitle('establishing trustworthiness');
+ if(lincoln){
+   const formerLincolnAnnotations=clone(lincoln.annotations||[]);
+   lincoln.annotations=trust&&trust!==lincoln?mergeAnnotationLists(trust.annotations):[];
+   for(const m of materials)if(m.sourceId===trust?.id)m.sourceId=lincoln.id;
+   for(const u of uses)if(u.sourceId===trust?.id)u.sourceId=lincoln.id;
+   // Keep the unrelated Jan Armstrong PDF and its analysis notes accessible, but separate them from the book citation.
+   const wrongMat=materials.find(m=>m.sourceId===lincoln.id&&/jan_natinquiry/i.test(m.fileName||''));
+   if(wrongMat||formerLincolnAnnotations.length){
+     const archiveId='repair-unverified-naturalistic-inquiry-article';
+     let archiveSource=x.sources.find(v=>v.id===archiveId);
+     if(!archiveSource){archiveSource={
+       id:archiveId,theme:'Background / Archive',priority:'Low',sourceType:'Article / PDF',
+       title:'Unverified naturalistic inquiry article (Jan Armstrong file)',authors:'',date:'',publisher:'',
+       apa:'',keyArgument:'',connection:'Preserved from the former Lincoln and Guba record because the uploaded PDF does not match Naturalistic Inquiry. Verify before citing.',
+       methodology:'',status:'Not Started',paperSection:'',url:'',tags:['metadata verification','do not cite until verified'],
+       annotations:[],created:repairStamp,updatedAt:repairStamp,libraryCleanupVersion:2
+     };x.sources.push(archiveSource)}
+     archiveSource.annotations=mergeAnnotationLists(archiveSource.annotations,formerLincolnAnnotations);
+     if(wrongMat){wrongMat.sourceId=archiveId;wrongMat.title='Unverified naturalistic inquiry article (Jan Armstrong file)'}
+   }
+   patch(lincoln,{
+    theme:'Analysis and Research Rigor',priority:'High',sourceType:'Book / Chapter',
+    title:'Naturalistic inquiry',authors:'Yvonna S. Lincoln, Egon G. Guba',
+    apaAuthors:'Lincoln, Y. S., & Guba, E. G.',date:'1985',journal:'',publisher:'SAGE Publications',
+    volume:'',issue:'',pages:'',doi:'',url:'',paperSection:'Chapter 3: Methodology and Data Acquisition · Trustworthiness'
+   });
+   if(trust&&trust!==lincoln)x.sources=x.sources.filter(v=>v.id!==trust.id);
+ }
+
+ const by=(needle)=>x.sources.find(v=>sourceTitleKey(v.title).includes(sourceTitleKey(needle)));
+ patch(by('whatever happened to qualitative description'),{
+  theme:'Research Methodology',sourceType:'Article / PDF',authors:'Margarete Sandelowski',apaAuthors:'Sandelowski, M.',
+  date:'2000',journal:'Research in Nursing & Health',publisher:'Wiley',volume:'23',issue:'4',pages:'334–340',
+  doi:'10.1002/1098-240X(200008)23:4<334::AID-NUR9>3.0.CO;2-G',
+  url:'https://doi.org/10.1002/1098-240X%28200008%2923%3A4%3C334%3A%3AAID-NUR9%3E3.0.CO%3B2-G',
+  paperSection:'Chapter 3: Methodology and Data Acquisition · Research Design and Rationale'
+ });
+ patch(by('using thematic analysis in psychology'),{
+  theme:'Analysis and Research Rigor',authors:'Virginia Braun, Victoria Clarke',apaAuthors:'Braun, V., & Clarke, V.',
+  date:'2006',journal:'Qualitative Research in Psychology',publisher:'Taylor & Francis',volume:'3',issue:'2',pages:'77–101',
+  doi:'10.1191/1478088706qp063oa',url:'https://doi.org/10.1191/1478088706qp063oa',
+  paperSection:'Chapter 3: Methodology and Data Acquisition · Data Analysis'
+ });
+ patch(by('thematic analysis: striving to meet the trustworthiness criteria'),{
+  theme:'Analysis and Research Rigor',title:'Thematic analysis: Striving to meet the trustworthiness criteria',
+  authors:'Lorelli S. Nowell, Jill M. Norris, Deborah E. White, Nancy J. Moules',
+  apaAuthors:'Nowell, L. S., Norris, J. M., White, D. E., & Moules, N. J.',date:'2017',
+  journal:'International Journal of Qualitative Methods',publisher:'SAGE Publications',volume:'16',issue:'1',pages:'1–13',
+  doi:'10.1177/1609406917733847',url:'https://doi.org/10.1177/1609406917733847',
+  paperSection:'Chapter 3: Methodology and Data Acquisition · Trustworthiness'
+ });
+ const shulman=x.sources.find(v=>String(v.authors||'').toLowerCase().includes('shulman'));
+ if(shulman)patch(shulman,{theme:'Instructional-Design Reasoning & Professional Judgment',apaAuthors:'Shulman, L. S.',date:'1987',journal:'Harvard Educational Review',publisher:'Harvard Education Publishing Group',volume:'57',issue:'1',pages:'1–23',doi:'10.17763/haer.57.1.j463w79r56455411',url:'https://doi.org/10.17763/haer.57.1.j463w79r56455411',paperSection:'Chapter 2: Review of Literature · Instructional-Design Reasoning and Professional Judgment'});
+ const olmos=x.sources.find(v=>String(v.authors||'').toLowerCase().includes('olmos-vega'));
+ if(olmos)patch(olmos,{theme:'Analysis and Research Rigor',priority:'High',paperSection:'Chapter 3: Methodology and Data Acquisition · Researcher Role and Positionality'});
+ patch(by('reflective practitioner'),{
+  theme:'Instructional-Design Reasoning & Professional Judgment',sourceType:'Book / Chapter',
+  title:'The reflective practitioner: How professionals think in action',authors:'Donald A. Schön',apaAuthors:'Schön, D. A.',
+  date:'1983',journal:'',publisher:'Basic Books',volume:'',issue:'',pages:'',doi:'',url:'',
+  paperSection:'Chapter 2: Review of Literature · Instructional-Design Reasoning and Professional Judgment'
+ });
+ patch(by('experiential learning: experience as the source'),{
+  theme:'Professional Learning, Feedback & Reflection',sourceType:'Book / Chapter',
+  title:'Experiential learning: Experience as the source of learning and development',authors:'David A. Kolb',apaAuthors:'Kolb, D. A.',
+  date:'1984',journal:'',publisher:'Prentice-Hall',volume:'',issue:'',pages:'',doi:'',url:'',
+  paperSection:'Chapter 2: Review of Literature · Reflection, Professional Learning, and Intended Transfer'
+ });
+ patch(by('learning by design: good video games'),{
+  theme:'Scenario-Based Learning & Purposeful Creativity',title:'Learning by design: Good video games as learning machines',
+  authors:'James Paul Gee',apaAuthors:'Gee, J. P.',date:'2005',journal:'E-Learning',publisher:'Symposium Journals',
+  volume:'2',issue:'1',pages:'5–16',doi:'10.2304/elea.2005.2.1.5',url:'https://doi.org/10.2304/elea.2005.2.1.5',
+  paperSection:'Chapter 2: Review of Literature · Scenario-Based Learning and Purposeful Creativity'
+ });
+ patch(by('when ai writes and ai grades'),{
+  theme:'Critical AI Collaboration & Educator Agency',title:'When AI writes and AI grades: Authorship, feedback, and the political economy of AI-mediated education',
+  authors:'Mattius Rischard',apaAuthors:'Rischard, M.',date:'2026',journal:'International Journal of AI in Pedagogy, Innovation, and Learning Futures',
+  volume:'2',issue:'1',pages:'',doi:'10.46787/ijaipil.v2i1.7555',url:'https://doi.org/10.46787/ijaipil.v2i1.7555',
+  paperSection:'Chapter 2: Review of Literature · Critical AI Collaboration and Educator Agency'
+ });
+ patch(by('rethinking artificial-intelligence literacy'),{
+  theme:'Critical AI Collaboration & Educator Agency',authors:'Liat Eyal',apaAuthors:'Eyal, L.',date:'2025',
+  journal:'Computers and Education Open',publisher:'Elsevier',volume:'9',issue:'',pages:'100291',
+  doi:'10.1016/j.caeo.2025.100291',url:'https://doi.org/10.1016/j.caeo.2025.100291',
+  paperSection:'Chapter 2: Review of Literature · Critical AI Collaboration and Educator Agency'
+ });
+ patch(by('ai literacy: a framework'),{
+  theme:'Critical AI Collaboration & Educator Agency',sourceType:'Report / Policy',
+  title:'AI literacy: A framework to understand, evaluate, and use emerging technology',
+  authors:'Kelly Mills, Pati Ruiz, Keun-woo Lee, Merijke Coenraad, Judi Fusco, Jeremy Roschelle, Josh Weisgrau',
+  apaAuthors:'Mills, K., Ruiz, P., Lee, K., Coenraad, M., Fusco, J., Roschelle, J., & Weisgrau, J.',
+  date:'2024',journal:'',publisher:'Digital Promise',volume:'',issue:'',pages:'',doi:'10.51388/20.500.12265/218',
+  url:'https://doi.org/10.51388/20.500.12265/218',
+  paperSection:'Chapter 2: Review of Literature · Critical AI Collaboration and Educator Agency'
+ });
+ patch(by('promoting positive instructional designer'),{
+  theme:'Instructional-Design Reasoning & Professional Judgment',sourceType:'Article / PDF',
+  title:'Promoting positive instructional designer and faculty relationships in the online environment: A case study',
+  authors:'Heidi A. Watson-Held, Jennifer Gray, Eileen Grodziak',apaAuthors:'Watson-Held, H. A., Gray, J., & Grodziak, E.',
+  date:'2024',journal:'The Journal of Educators Online',publisher:'Journal of Educators Online',volume:'21',issue:'1',pages:'',
+  doi:'10.9743/JEO.2024.21.1.1',url:'https://doi.org/10.9743/JEO.2024.21.1.1',
+  paperSection:'Chapter 1: Introduction · Background and Context'
+ });
+ patch(by('modification and evaluation of an open-source rubric'),{
+  sourceType:'Article / PDF',authors:'Jingrong Xie, Yuna Ferguson, Gulinna A, Mary Rice, Mark Nichols',
+  apaAuthors:'Xie, J., Ferguson, Y., A, G., Rice, M., & Nichols, M.',date:'2025',journal:'Distance Education',
+  publisher:'Taylor & Francis',volume:'46',issue:'3',pages:'452–476',doi:'10.1080/01587919.2024.2383227',
+  url:'https://doi.org/10.1080/01587919.2024.2383227'
+ });
+ patch(by('advancing project leadership education'),{
+  theme:'Scenario-Based Learning & Purposeful Creativity',sourceType:'Article / PDF',
+  title:'Advancing project leadership education through AI-enhanced game-based learning',
+  authors:'Matthew Daniels, Éamonn Kelly, Sandra Flynn, John Kelly',apaAuthors:'Daniels, M., Kelly, É., Flynn, S., & Kelly, J.',
+  date:'2025',journal:'Project Leadership and Society',publisher:'Elsevier',volume:'6',issue:'',pages:'100189',
+  doi:'10.1016/j.plas.2025.100189',url:'https://doi.org/10.1016/j.plas.2025.100189'
+ });
+ patch(by('harnessing asynchronous digital simulations'),{
+  theme:'Scenario-Based Learning & Purposeful Creativity',date:'2025',journal:'International Journal of Science and Mathematics Education',
+  publisher:'Springer',volume:'23',issue:'6',pages:'1883–1916',doi:'10.1007/s10763-024-10514-x',
+  url:'https://doi.org/10.1007/s10763-024-10514-x',
+  paperSection:'Chapter 2: Review of Literature · Scenario-Based Learning and Purposeful Creativity'
+ });
+ patch(by('what gtas need'),{
+  authors:'Donald A. Saucier, Noah D. Renken, Ashley A. Schiffer, Tucker L. Jones',
+  apaAuthors:'Saucier, D. A., Renken, N. D., Schiffer, A. A., & Jones, T. L.',date:'2025',
+  journal:'Journal on Centers for Teaching and Learning',publisher:'Journal on Centers for Teaching and Learning',
+  volume:'16',issue:'',pages:'141–162',doi:'',url:'https://openjournal.lib.miamioh.edu/index.php/jctl/article/view/266'
+ });
+
+ // Paper Use realignment. Multiple cards per source remain supported.
+ const sectionMap=[
+  ['using thematic analysis in psychology','Chapter 3: Methodology and Data Acquisition · Data Analysis'],
+  ['thematic analysis: striving to meet the trustworthiness criteria','Chapter 3: Methodology and Data Acquisition · Trustworthiness'],
+  ['promoting positive instructional designer','Chapter 1: Introduction · Background and Context'],
+  ['learning by design: good video games','Chapter 2: Review of Literature · Scenario-Based Learning and Purposeful Creativity'],
+  ['when ai writes and ai grades','Chapter 2: Review of Literature · Critical AI Collaboration and Educator Agency'],
+  ['purposeful sampling for qualitative data collection','Chapter 3: Methodology and Data Acquisition · Participants and Recruitment'],
+  ['whatever happened to qualitative description','Chapter 3: Methodology and Data Acquisition · Research Design and Rationale'],
+  ['reflective practitioner','Chapter 2: Review of Literature · Instructional-Design Reasoning and Professional Judgment']
+ ];
+ for(const u of uses){
+   const src=x.sources.find(v=>v.id===u.sourceId);if(!src)continue;
+   const key=sourceTitleKey(src.title);
+   for(const [needle,section] of sectionMap)if(key.includes(sourceTitleKey(needle))){u.paperSection=section;u.updatedAt=repairStamp;break}
+   if(String(src.authors||'').toLowerCase().includes('olmos-vega')){u.paperSection='Chapter 3: Methodology and Data Acquisition · Researcher Role and Positionality';u.updatedAt=repairStamp}
+   if(String(src.authors||'').toLowerCase().includes('shulman')){u.paperSection='Chapter 2: Review of Literature · Instructional-Design Reasoning and Professional Judgment';u.updatedAt=repairStamp}
+ }
+ for(const src of x.sources||[])if(Number(src.libraryCleanupVersion||0)>=2)src.apa=sourceGeneratedApa(src);
+ x.meta.researchLibraryRepairVersion=RESEARCH_LIBRARY_REPAIR_VERSION;
+ x.meta.researchLibraryRepairUpdated='2026-11-25';
+ return x
+}
 function mergeBaseData(saved){
  const seed=normalizeSeed(window.PROMPTCRAFT_SEED),x=PromptCraftLibrary.migrate(saved&&typeof saved==='object'?saved:seed);
  x.researchArchives=PromptCraftLibrary.unionArchives(seed.researchArchives||[],x.researchArchives||[]);
@@ -139,6 +361,7 @@ function mergeBaseData(saved){
  if(!Array.isArray(x.paperUses))x.paperUses=[];
  x.researchMaterials=mergeCollection(seed.researchMaterials||[],x.researchMaterials||[],m=>m.id||`${String(m.title||'').trim().toLowerCase()}|${String(m.fileName||'').trim().toLowerCase()}`);
  normalizeResearchLibrary(x);
+ applyResearchLibraryRepair(x);
  return applyTombstones(applyResearchPlanMigration(PromptCraftLibrary.migrate(x),seed))
 }
 function loadLocal(){const raw=localStorage.getItem(STORAGE_KEY);if(raw){try{return mergeBaseData(JSON.parse(raw))}catch(e){throw new Error('Saved research data could not be loaded. It has not been replaced. '+e.message)}}return mergeBaseData(window.PROMPTCRAFT_SEED)}
@@ -500,23 +723,56 @@ function sourceCitationParts(s={}){
  const legacy=legacyJournalParts(s),doi=sourceDoiValue(s),doiUrl=doi?`https://doi.org/${encodeDoiForUrl(doi)}`:'';
  return {authors:String(s.apaAuthors||legacyApaAuthors(s)||s.authors||'').trim(),year:sourceCitationYear(s),title:String(s.title||'').trim(),journal:legacy.journal,volume:legacy.volume,issue:legacy.issue,pages:legacy.pages,doi,doiUrl,url:String(s.url||'').trim(),publisher:String(s.publisher||'').trim(),sourceType:String(s.sourceType||'')}
 }
+function sourceKind(s={}){
+ const type=String(s.sourceType||'').toLowerCase(),p=sourceCitationParts(s);
+ if(type.includes('report'))return 'report';
+ if(type.includes('web'))return 'web';
+ if(type.includes('book'))return p.journal?'chapter':'book';
+ if(type.includes('article')||p.journal)return 'article';
+ return 'other'
+}
+function sourceLink(p){return p.doiUrl||(/^https?:\/\//i.test(p.url)?p.url:'')}
+function titleWithPeriod(value=''){const t=String(value||'').trim();return /[.?!]$/.test(t)?t:`${t}.`}
 function sourceGeneratedApa(s={}){
  const p=sourceCitationParts(s);if(!p.title)return String(s.apa||'').trim();
- if(p.journal){
+ const kind=sourceKind(s),authorYear=`${p.authors?`${p.authors} `:''}(${p.year}).`,link=sourceLink(p);
+ if(kind==='article'){
    const journalBlock=[p.journal,p.volume].filter(Boolean).join(', ')+(p.issue?`(${p.issue})`:'');
-   const pages=p.pages?`, ${p.pages}`:'';const link=p.doiUrl||(/^https?:\/\//i.test(p.url)?p.url:'');
-   const title=/[.?!]$/.test(p.title)?p.title:`${p.title}.`;return `${p.authors?`${p.authors} `:''}(${p.year}). ${title} ${journalBlock}${pages}.${link?` ${link}`:''}`.replace(/\s+/g,' ').trim();
+   const pages=p.pages?`, ${p.pages}`:'';
+   return `${authorYear} ${titleWithPeriod(p.title)} ${journalBlock}${pages}.${link?` ${link}`:''}`.replace(/\s+/g,' ').trim();
  }
- const existing=String(s.apa||'').trim();if(existing){const link=p.doiUrl||(/^https?:\/\//i.test(p.url)?p.url:'');return link&&!existing.includes(link)?`${existing.replace(/\s+$/,'')} ${link}`:existing}
- const pub=p.publisher?` ${p.publisher}.`:'';const link=p.doiUrl||(/^https?:\/\//i.test(p.url)?p.url:'');return `${p.authors?`${p.authors} `:''}(${p.year}). ${p.title}.${pub}${link?` ${link}`:''}`.replace(/\s+/g,' ').trim()
+ if(kind==='chapter'){
+   const parent=p.journal?` In ${p.journal}.`:'';
+   const pages=p.pages?` (pp. ${p.pages}).`:'';
+   const pub=p.publisher?` ${p.publisher}.`:'';
+   return `${authorYear} ${titleWithPeriod(p.title)}${parent}${pages}${pub}${link?` ${link}`:''}`.replace(/\s+/g,' ').trim();
+ }
+ if(kind==='book'||kind==='report'||kind==='web'){
+   const pub=(kind!=='web'&&p.publisher)?` ${p.publisher}.`:'';
+   return `${authorYear} ${titleWithPeriod(p.title)}${pub}${link?` ${link}`:''}`.replace(/\s+/g,' ').trim();
+ }
+ const pub=p.publisher?` ${p.publisher}.`:'';
+ return `${authorYear} ${titleWithPeriod(p.title)}${pub}${link?` ${link}`:''}`.replace(/\s+/g,' ').trim();
 }
 function sourceGeneratedApaHtml(s={}){
  const p=sourceCitationParts(s);if(!p.title)return esc(sourceGeneratedApa(s));
- if(p.journal){
-   const journalVol=`${esc(p.journal)}${p.volume?`, ${esc(p.volume)}`:''}`;const issue=p.issue?`(${esc(p.issue)})`:'';const pages=p.pages?`, ${esc(p.pages)}`:'';const link=p.doiUrl||(/^https?:\/\//i.test(p.url)?p.url:'');
-   const title=/[.?!]$/.test(p.title)?esc(p.title):`${esc(p.title)}.`;return `${p.authors?`${esc(p.authors)} `:''}(${esc(p.year)}). ${title} <em>${journalVol}</em>${issue}${pages}.${link?` <a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a>`:''}`;
+ const kind=sourceKind(s),authorYear=`${p.authors?`${esc(p.authors)} `:''}(${esc(p.year)}).`,link=sourceLink(p);
+ const linked=link?` <a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a>`:'';
+ if(kind==='article'){
+   const journalVol=`${esc(p.journal)}${p.volume?`, ${esc(p.volume)}`:''}`,issue=p.issue?`(${esc(p.issue)})`:'',pages=p.pages?`, ${esc(p.pages)}`:'';
+   return `${authorYear} ${esc(titleWithPeriod(p.title))} <em>${journalVol}</em>${issue}${pages}.${linked}`;
  }
- return esc(sourceGeneratedApa(s))
+ if(kind==='chapter'){
+   const parent=p.journal?` In <em>${esc(p.journal)}</em>.`:'';
+   const pages=p.pages?` (pp. ${esc(p.pages)}).`:'';
+   const pub=p.publisher?` ${esc(p.publisher)}.`:'';
+   return `${authorYear} ${esc(titleWithPeriod(p.title))}${parent}${pages}${pub}${linked}`;
+ }
+ if(kind==='book'||kind==='report'||kind==='web'){
+   const pub=(kind!=='web'&&p.publisher)?` ${esc(p.publisher)}.`:'';
+   return `${authorYear} <em>${esc(titleWithPeriod(p.title))}</em>${pub}${linked}`;
+ }
+ return esc(sourceGeneratedApa(s));
 }
 async function copyText(text,label='Copied'){
  const value=String(text||'').trim();if(!value){toast('Nothing to copy yet');return}

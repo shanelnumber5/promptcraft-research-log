@@ -34,7 +34,10 @@ function doiUrl(doi=""){
 
 function first(v) { return Array.isArray(v) ? (v[0] || "") : (v || ""); }
 function crossrefDate(m = {}) {
-  const p = m.published?.["date-parts"]?.[0] || m.issued?.["date-parts"]?.[0] || m.created?.["date-parts"]?.[0];
+  // Prefer the final print/issue date when Crossref supplies one. Online-first
+  // dates are useful provenance, but APA journal references normally use the
+  // year of the final issue in which the article appears.
+  const p = m["published-print"]?.["date-parts"]?.[0] || m.issued?.["date-parts"]?.[0] || m.published?.["date-parts"]?.[0] || m["published-online"]?.["date-parts"]?.[0] || m.created?.["date-parts"]?.[0];
   return Array.isArray(p) && p.length ? p.filter(Boolean).join("-") : "";
 }
 function crossrefAuthors(list = []) {
@@ -73,7 +76,7 @@ async function crossrefLookup(input) {
       doi,
       url: doiUrl(doi),
       abstract: cleanText(m.abstract || ""),
-      sourceType: m.type === "book" || m.type === "book-chapter" ? "Book / Chapter" : "Article / PDF"
+      sourceType: m.type === "book" || m.type === "book-chapter" ? "Book / Chapter" : (m.type === "report" || m.type === "report-component" ? "Report / Policy" : "Article / PDF")
     };
   } catch {
     return { doi, url: doiUrl(doi) };
@@ -188,9 +191,11 @@ function apaFromMeta(m = {}) {
   const year = String(m.date || "").match(/\d{4}/)?.[0] || "n.d.";
   const journal=String(m.journal||"").trim(),volume=String(m.volume||"").trim(),issue=String(m.issue||"").trim(),pages=String(m.pages||"").trim();
   const doi=extractDoi(m.doi||m.url||""),link=doi?doiUrl(doi):(/^https?:\/\//i.test(String(m.url||""))?String(m.url):"");
-  if(journal){const journalBlock=[journal,volume].filter(Boolean).join(", ")+(issue?`(${issue})`:"");const title=/[.?!]$/.test(String(m.title))?String(m.title):`${m.title}.`;return `${author ? author + " " : ""}(${year}). ${title} ${journalBlock}${pages?`, ${pages}`:""}.${link?` ${link}`:""}`.replace(/\s+/g," ").trim()}
-  const pub = m.publisher ? ` ${m.publisher}.` : "";
-  return `${author ? author + " " : ""}(${year}). ${m.title}.${pub}${link?` ${link}`:""}`.replace(/\s+/g, " ").trim();
+  const type=String(m.sourceType||"").toLowerCase(), title=/[.?!]$/.test(String(m.title))?String(m.title):`${m.title}.`;
+  if(type.includes("article")||journal){const journalBlock=[journal,volume].filter(Boolean).join(", ")+(issue?`(${issue})`:"");return `${author ? author + " " : ""}(${year}). ${title} ${journalBlock}${pages?`, ${pages}`:""}.${link?` ${link}`:""}`.replace(/\s+/g," ").trim()}
+  if(type.includes("book")&&journal){const pub=m.publisher?` ${m.publisher}.`:"";return `${author ? author + " " : ""}(${year}). ${title} In ${journal}.${pages?` (pp. ${pages}).`:""}${pub}${link?` ${link}`:""}`.replace(/\s+/g," ").trim()}
+  const pub = (!type.includes("web")&&m.publisher) ? ` ${m.publisher}.` : "";
+  return `${author ? author + " " : ""}(${year}). ${title}${pub}${link?` ${link}`:""}`.replace(/\s+/g, " ").trim();
 }
 
 function mergeMeta(a = {}, b = {}) {

@@ -1,10 +1,12 @@
 /* Source organization only: file bytes, IDs, annotations and backups stay in place. */
 (function (root) {
   const categories = [
-    'Instructional-Design Reasoning & Course Redesign',
+    'Instructional-Design Reasoning & Professional Judgment',
     'Professional Learning, Feedback & Reflection',
     'Critical AI Collaboration & Educator Agency',
     'Scenario-Based Learning & Purposeful Creativity',
+    'Research Methodology',
+    'Analysis and Research Rigor',
     'Background / Archive'
   ];
   const groups = [
@@ -49,8 +51,25 @@
     if (/Examining Faculty Perceptions of Distance Course Quality Review Feedback/i.test(source.title || '')) return categories[1];
     if (/Developing Asynchronous Workshop/i.test(source.title || '')) return categories[1];
     if (categories.includes(value)) return value;
-    const index = groups.findIndex(list => list.includes(value));
-    return categories[index < 0 ? 4 : index];
+    const maps = new Map([
+      ['Instructional Design & OSCQR', categories[0]],
+      ['Instructional Design, Canvas, Accessibility & OSCQR', categories[0]],
+      ['Synchronous vs Asynchronous Design', categories[0]],
+      ['Instructional-Design Reasoning & Course Redesign', categories[0]],
+      ['Professional Development Design', categories[1]],
+      ['Educator Professional Development & Transfer to Practice', categories[1]],
+      ['Metacognition & Online Learning', categories[1]],
+      ['Metacognition, Reflection & Learning Transfer', categories[1]],
+      ['AI Literacy & Prompt Engineering', categories[2]],
+      ['Educator AI Literacy & Critical Evaluation', categories[2]],
+      ['AI Overreliance & Critical Evaluation', categories[2]],
+      ['Professional Judgment, Agency & Human-AI Decision Making', categories[2]],
+      ['Game-Based & Simulation Learning', categories[3]],
+      ['Authentic Scenario-Based & Game-Based Professional Learning', categories[3]],
+      ['Research Instrumentation, Process Data & Validity', categories[4]],
+      ['Mixed Methods Action Research & Iterative Design', categories[4]]
+    ]);
+    return maps.get(value) || categories[6];
   }
   function unionArchives(...lists) {
     const seen = new Set();

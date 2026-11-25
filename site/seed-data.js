@@ -888,7 +888,7 @@ window.PROMPTCRAFT_SEED = {
     },
     {
       "id": "tracker-2026-14-hybrid-learning-in-higher-education-",
-      "theme": "Instructional-Design Reasoning & Course Redesign",
+      "theme": "Instructional-Design Reasoning & Professional Judgment",
       "legacyTheme": "Synchronous vs Asynchronous Design",
       "priority": "High",
       "sourceType": "Article / PDF",
@@ -937,7 +937,7 @@ window.PROMPTCRAFT_SEED = {
     },
     {
       "id": "tracker-2026-15-modification-and-evaluation-of-an-op",
-      "theme": "Instructional-Design Reasoning & Course Redesign",
+      "theme": "Instructional-Design Reasoning & Professional Judgment",
       "legacyTheme": "Instructional Design & OSCQR",
       "priority": "High",
       "sourceType": "Article / PDF",

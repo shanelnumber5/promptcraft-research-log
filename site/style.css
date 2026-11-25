@@ -281,3 +281,7 @@ button:active:not(:disabled){transform:translateY(1px)}
 .source-citation a,.paper-use-citation a,#sourceApaPreview a{overflow-wrap:anywhere}
 @media (max-width:900px){.citation-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:620px){.citation-detail-grid{grid-template-columns:1fr}}
+
+/* Research PDF reader */
+.pdf-modal{position:fixed;inset:0;z-index:110;background:rgba(0,0,0,.88);padding:22px;display:grid;place-items:center}.pdf-modal-shell{width:min(1500px,96vw);height:min(94vh,1000px);background:#171716;border:1px solid #45453f;border-radius:12px;overflow:hidden;display:grid;grid-template-rows:auto 1fr;box-shadow:0 24px 80px rgba(0,0,0,.6)}.pdf-modal-head{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:14px 16px;border-bottom:1px solid #3b3b36;background:#20201e}.pdf-modal-head h2{margin:0;font-size:18px}.pdf-modal-head p{margin:3px 0 0}.pdf-modal-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.pdf-modal-close{width:40px;height:40px;padding:0;border-radius:50%;font-size:26px;line-height:1;background:#f1f1ed;color:#171716}.pdf-modal iframe{width:100%;height:100%;border:0;background:#fff}.pdf-modal.hidden{display:none}
+@media(max-width:760px){.pdf-modal{padding:8px}.pdf-modal-shell{width:100%;height:96vh;border-radius:8px}.pdf-modal-head{align-items:flex-start;flex-direction:column;padding:10px}.pdf-modal-actions{width:100%;justify-content:flex-start}.pdf-modal-close{margin-left:auto}.pdf-modal iframe{min-height:0}}

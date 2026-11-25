@@ -334,9 +334,22 @@
       <figcaption id="imageModalCaption"></figcaption>
     </figure>
   </div>
+  <div id="pdfModal" class="pdf-modal hidden" role="dialog" aria-modal="true" aria-labelledby="pdfModalTitle">
+    <div class="pdf-modal-shell">
+      <div class="pdf-modal-head">
+        <div><h2 id="pdfModalTitle">Research PDF</h2><p id="pdfModalMeta" class="small"></p></div>
+        <div class="pdf-modal-actions">
+          <button type="button" class="ghost" onclick="openCurrentResearchPdf()">Open in new tab</button>
+          <button type="button" class="ghost" onclick="downloadCurrentResearchPdf()">Download</button>
+          <button id="pdfModalClose" type="button" class="pdf-modal-close" aria-label="Close PDF viewer">×</button>
+        </div>
+      </div>
+      <iframe id="pdfModalFrame" title="Research PDF viewer"></iframe>
+    </div>
+  </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="library-cleanup.js?v=20261019-library1"></script>
-  <script src="seed-data.js?v=20261124-recovery1"></script>
-  <script src="app.js?v=20261124-recovery1"></script>
+  <script src="seed-data.js?v=20261125-pdfviewer1"></script>
+  <script src="app.js?v=20261125-pdfviewer1"></script>
 </body>
 </html>
